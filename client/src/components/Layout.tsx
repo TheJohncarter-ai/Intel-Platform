@@ -5,7 +5,18 @@
 
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Search, Users, Trophy, ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import {
+  Users,
+  Trophy,
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+  Shield,
+  LogOut,
+} from "lucide-react";
 
 const NAV_ITEMS = [
   { path: "/", label: "NETWORK", icon: Users },
@@ -16,6 +27,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user, logout } = useAuth();
+
+  const { data: whitelistStatus } = trpc.auth.whitelistStatus.useQuery(
+    undefined,
+    {
+      enabled: !!user,
+      retry: false,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  const isAdmin = whitelistStatus?.isAdmin;
 
   return (
     <div className="min-h-screen flex bg-background">
@@ -45,8 +68,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <span className="text-primary font-bold text-sm">S</span>
               </div>
               <div>
-                <div className="font-display text-sm text-foreground leading-tight">Strategic</div>
-                <div className="font-mono-label text-[0.6rem] text-muted-foreground tracking-widest">NETWORK INTEL</div>
+                <div className="font-display text-sm text-foreground leading-tight">
+                  Strategic
+                </div>
+                <div className="font-mono-label text-[0.6rem] text-muted-foreground tracking-widest">
+                  NETWORK INTEL
+                </div>
               </div>
             </div>
           )}
@@ -71,31 +98,83 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                 <div
                   className={`
                     flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-150
-                    ${isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    ${
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
                     }
                     ${collapsed ? "justify-center" : ""}
                   `}
                 >
                   <Icon size={18} strokeWidth={1.5} />
                   {!collapsed && (
-                    <span className="font-mono-label text-[0.7rem]">{item.label}</span>
+                    <span className="font-mono-label text-[0.7rem]">
+                      {item.label}
+                    </span>
                   )}
                 </div>
               </Link>
             );
           })}
+
+          {/* Admin link */}
+          {isAdmin && (
+            <Link href="/admin" onClick={() => setMobileOpen(false)}>
+              <div
+                className={`
+                  flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-150
+                  ${
+                    location === "/admin"
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                  }
+                  ${collapsed ? "justify-center" : ""}
+                `}
+              >
+                <Shield size={18} strokeWidth={1.5} />
+                {!collapsed && (
+                  <span className="font-mono-label text-[0.7rem]">ADMIN</span>
+                )}
+              </div>
+            </Link>
+          )}
         </nav>
 
-        {/* Collapse toggle (desktop only) */}
-        <div className="hidden lg:flex border-t border-border p-2">
+        {/* User info + sign out */}
+        <div className="border-t border-border p-2 space-y-1">
+          {user && !collapsed && (
+            <div className="px-3 py-2">
+              <p className="text-xs text-foreground truncate">
+                {user.name || "User"}
+              </p>
+              <p className="text-[0.6rem] text-muted-foreground truncate">
+                {user.email}
+              </p>
+            </div>
+          )}
           <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="w-full flex items-center justify-center py-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent"
+            onClick={logout}
+            className={`w-full flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent ${collapsed ? "justify-center" : ""}`}
           >
-            {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+            <LogOut size={16} strokeWidth={1.5} />
+            {!collapsed && (
+              <span className="font-mono-label text-[0.65rem]">SIGN OUT</span>
+            )}
           </button>
+
+          {/* Collapse toggle (desktop only) */}
+          <div className="hidden lg:block">
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="w-full flex items-center justify-center py-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent"
+            >
+              {collapsed ? (
+                <ChevronRight size={16} />
+              ) : (
+                <ChevronLeft size={16} />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Mobile close */}
@@ -119,9 +198,13 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               <Menu size={20} />
             </button>
             <div className="hidden sm:flex items-center gap-2 text-muted-foreground">
-              <span className="font-mono-label text-[0.65rem]">STRATEGIC NETWORK INTELLIGENCE</span>
+              <span className="font-mono-label text-[0.65rem]">
+                STRATEGIC NETWORK INTELLIGENCE
+              </span>
               <span className="text-border">|</span>
-              <span className="font-mono-label text-[0.6rem] text-primary/70">35 CONTACTS</span>
+              <span className="font-mono-label text-[0.6rem] text-primary/70">
+                35 CONTACTS
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -130,9 +213,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </div>
   );

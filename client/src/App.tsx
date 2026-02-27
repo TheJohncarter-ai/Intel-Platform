@@ -4,26 +4,29 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import AuthGate from "./components/AuthGate";
 import Home from "./pages/Home";
 import ProfileDetail from "./pages/ProfileDetail";
 import Rankings from "./pages/Rankings";
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/profile/:id" component={ProfileDetail} />
-      <Route path="/rankings" component={Rankings} />
-      <Route path="/404" component={NotFound} />
-      <Route component={NotFound} />
-    </Switch>
+    <AuthGate>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/profile/:id" component={ProfileDetail} />
+        <Route path="/rankings" component={Rankings} />
+        <Route path="/404" component={NotFound} />
+        <Route component={NotFound} />
+      </Switch>
+    </AuthGate>
   );
 }
 
 function App() {
   return (
     <ErrorBoundary>
-      <ThemeProvider defaultTheme="light">
+      <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
           <Router />
