@@ -60,3 +60,16 @@
 - [x] Push to GitHub repo
 - [x] Phase 4 tests (40 total passing)
 - [x] Phase 4 checkpoint
+
+## Phase 5 — GitHub Sync + Mobile Optimization
+- [ ] Push all current code to GitHub main branch
+- [ ] Verify GitHub repo is fully up to date
+- [ ] Responsive Home page layout (header, globe, list, stale views)
+- [ ] Portrait-to-landscape rotation prompt animation on mobile globe view
+- [ ] Responsive Profile page (contact info, notes, forms)
+- [ ] Responsive Admin panel (tabs, tables, forms)
+- [ ] Responsive Request Access page
+- [ ] Touch-friendly globe interactions
+- [ ] Contact cards and bottom panel responsive on small screens
+- [ ] Tables scroll horizontally on mobile
+- [ ] Phase 5 checkpoint + GitHub push
