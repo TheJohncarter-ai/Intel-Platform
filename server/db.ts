@@ -68,7 +68,7 @@ export async function getUserByOpenId(openId: string) {
 export async function getAllContacts(): Promise<Contact[]> {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(contacts);
+  return db.select().from(contacts).orderBy(contacts.name);
 }
 
 export async function getContactById(id: number): Promise<Contact | undefined> {
@@ -76,6 +76,42 @@ export async function getContactById(id: number): Promise<Contact | undefined> {
   if (!db) return undefined;
   const result = await db.select().from(contacts).where(eq(contacts.id, id)).limit(1);
   return result[0];
+}
+
+export async function updateContact(
+  id: number,
+  data: Partial<Pick<Contact, "name" | "role" | "organization" | "location" | "group" | "tier" | "email" | "phone" | "notes" | "linkedinUrl">>
+): Promise<Contact | undefined> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const updateSet: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value !== undefined) updateSet[key === "group" ? "group_name" : key] = value;
+  }
+  if (Object.keys(updateSet).length === 0) return getContactById(id);
+  await db.update(contacts).set(updateSet).where(eq(contacts.id, id));
+  return getContactById(id);
+}
+
+export async function setContactResearchedAt(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(contacts).set({ lastResearchedAt: new Date() }).where(eq(contacts.id, id));
+}
+
+/** Get the most recent note date for each contact */
+export async function getLastContactedMap(): Promise<Map<number, Date>> {
+  const db = await getDb();
+  if (!db) return new Map();
+  const rows = await db.select({
+    contactId: meetingNotes.contactId,
+    lastDate: sql<Date>`MAX(${meetingNotes.createdAt})`,
+  }).from(meetingNotes).groupBy(meetingNotes.contactId);
+  const map = new Map<number, Date>();
+  for (const row of rows) {
+    map.set(row.contactId, row.lastDate);
+  }
+  return map;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -153,6 +189,8 @@ export async function hasExistingPendingRequest(email: string): Promise<boolean>
 // MEETING NOTES
 // ═══════════════════════════════════════════════════════════════════════
 
+type NoteType = "meeting" | "call" | "email" | "follow_up" | "general" | "research";
+
 export async function getNotesByContactId(contactId: number): Promise<MeetingNote[]> {
   const db = await getDb();
   if (!db) return [];
@@ -163,7 +201,7 @@ export async function getNotesByContactId(contactId: number): Promise<MeetingNot
 
 export async function addMeetingNote(
   contactId: number, authorEmail: string, authorName: string | null,
-  noteType: "meeting" | "call" | "email" | "follow_up" | "general", content: string
+  noteType: NoteType, content: string
 ): Promise<MeetingNote> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -192,7 +230,7 @@ export async function getMeetingNoteById(id: number): Promise<MeetingNote | unde
 // AUDIT LOG
 // ═══════════════════════════════════════════════════════════════════════
 
-type AuditAction = "profile_view" | "note_added" | "note_deleted" | "access_approved" | "access_denied" | "whitelist_added" | "whitelist_removed";
+type AuditAction = "profile_view" | "note_added" | "note_deleted" | "access_approved" | "access_denied" | "whitelist_added" | "whitelist_removed" | "contact_updated" | "contact_researched" | "invite_sent";
 
 export async function logAudit(
   action: AuditAction,
@@ -227,4 +265,34 @@ export async function getAuditLog(opts: {
   const total = Number(countResult[0]?.count ?? 0);
 
   return { entries, total };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// ADMIN STATS
+// ═══════════════════════════════════════════════════════════════════════
+
+export async function getAdminStats(): Promise<{
+  totalContacts: number;
+  totalWhitelisted: number;
+  pendingRequests: number;
+  totalNotes: number;
+  recentActivity: number;
+}> {
+  const db = await getDb();
+  if (!db) return { totalContacts: 0, totalWhitelisted: 0, pendingRequests: 0, totalNotes: 0, recentActivity: 0 };
+
+  const [contactCount] = await db.select({ count: sql<number>`count(*)` }).from(contacts);
+  const [whitelistCount] = await db.select({ count: sql<number>`count(*)` }).from(emailWhitelist);
+  const [pendingCount] = await db.select({ count: sql<number>`count(*)` }).from(accessRequests).where(eq(accessRequests.status, "pending"));
+  const [noteCount] = await db.select({ count: sql<number>`count(*)` }).from(meetingNotes);
+  const [activityCount] = await db.select({ count: sql<number>`count(*)` }).from(auditLog)
+    .where(sql`${auditLog.createdAt} > DATE_SUB(NOW(), INTERVAL 7 DAY)`);
+
+  return {
+    totalContacts: Number(contactCount?.count ?? 0),
+    totalWhitelisted: Number(whitelistCount?.count ?? 0),
+    pendingRequests: Number(pendingCount?.count ?? 0),
+    totalNotes: Number(noteCount?.count ?? 0),
+    recentActivity: Number(activityCount?.count ?? 0),
+  };
 }

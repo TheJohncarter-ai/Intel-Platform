@@ -4,10 +4,10 @@ import { useState } from "react";
 import {
   ArrowLeft, Mail, Phone, MapPin, Building, Briefcase, Users, Tag,
   Plus, Trash2, MessageSquare, PhoneCall, MailIcon, Clock, FileText,
-  AlertTriangle,
+  Edit3, X, Save, Sparkles, ExternalLink, Linkedin, Info,
 } from "lucide-react";
 import { toast } from "sonner";
-import { PageShell, LoadingScreen, PanelCard, SectionHeader, StatusBadge, EmptyState } from "@/components/ui-primitives";
+import { Streamdown } from "streamdown";
 
 const NOTE_TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   meeting:   { label: "Meeting",   icon: <MessageSquare size={12} />, color: "#d4a843" },
@@ -15,91 +15,291 @@ const NOTE_TYPE_META: Record<string, { label: string; icon: React.ReactNode; col
   email:     { label: "Email",     icon: <MailIcon size={12} />,      color: "#a78bfa" },
   follow_up: { label: "Follow-up", icon: <Clock size={12} />,        color: "#4ade80" },
   general:   { label: "General",   icon: <FileText size={12} />,     color: "#4a6080" },
+  research:  { label: "Research",  icon: <Sparkles size={12} />,     color: "#f59e0b" },
 };
 
 export default function Profile() {
   const params = useParams<{ id: string }>();
   const contactId = Number(params.id);
+  const utils = trpc.useUtils();
 
   const { data: contact, isLoading, error } = trpc.contacts.getById.useQuery(
     { id: contactId },
     { enabled: !isNaN(contactId) }
   );
 
-  if (isLoading) return <LoadingScreen text="Loading profile..." />;
+  const [showAddInfo, setShowAddInfo] = useState(false);
+  const [editFields, setEditFields] = useState<Record<string, string>>({});
 
-  if (error || !contact) {
+  const updateMutation = trpc.contacts.update.useMutation({
+    onSuccess: () => {
+      utils.contacts.getById.invalidate({ id: contactId });
+      utils.contacts.list.invalidate();
+      setShowAddInfo(false);
+      setEditFields({});
+      toast.success("Contact updated");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const researchMutation = trpc.contacts.research.useMutation({
+    onSuccess: () => {
+      utils.notes.listByContact.invalidate({ contactId });
+      utils.contacts.getById.invalidate({ id: contactId });
+      toast.success("Research complete — saved as a note");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  if (isLoading) {
     return (
-      <PageShell>
-        <div className="min-h-screen flex flex-col items-center justify-center gap-4">
-          <div className="text-[#f87171] font-mono text-sm tracking-widest uppercase">Contact not found</div>
-          <Link href="/" className="text-[#d4a843] font-mono text-xs tracking-wider hover:text-[#f0c060] transition-colors flex items-center gap-2">
-            <ArrowLeft size={14} /> Return to Globe
-          </Link>
+      <div className="min-h-screen bg-[#0a0c18] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-full border-2 border-[#1a3a6a] border-t-[#d4a843] animate-spin" />
+          <span className="text-[#4a6080] text-[10px] tracking-[0.2em] uppercase"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}>Loading profile...</span>
         </div>
-      </PageShell>
+      </div>
     );
   }
 
+  if (error || !contact) {
+    return (
+      <div className="min-h-screen bg-[#0a0c18] flex flex-col items-center justify-center gap-4">
+        <div className="text-[#f87171] text-sm tracking-widest uppercase" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          Contact not found
+        </div>
+        <Link href="/" className="text-[#d4a843] text-xs tracking-wider hover:text-[#f0c060] transition-colors flex items-center gap-2"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          <ArrowLeft size={14} /> Return to Globe
+        </Link>
+      </div>
+    );
+  }
+
+  const handleSaveInfo = () => {
+    const updates: Record<string, string> = {};
+    Object.entries(editFields).forEach(([k, v]) => {
+      if (v.trim()) updates[k] = v.trim();
+    });
+    if (Object.keys(updates).length === 0) {
+      toast.error("No changes to save");
+      return;
+    }
+    updateMutation.mutate({ id: contactId, ...updates });
+  };
+
   return (
-    <PageShell>
+    <div className="min-h-screen bg-[#0a0c18] text-[#c8d8f0]">
       {/* Header */}
-      <div className="border-b border-[#151f38] bg-[#060914]/90 backdrop-blur-md">
+      <div style={{ borderBottom: "1px solid #151f38", background: "rgba(6,9,20,0.92)", backdropFilter: "blur(16px)" }}>
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Link href="/" className="text-[#4a6080] hover:text-[#d4a843] transition-colors">
-            <ArrowLeft size={20} />
+          <Link href="/" className="text-[#4a6080] hover:text-[#d4a843] transition-colors p-1">
+            <ArrowLeft size={18} />
           </Link>
-          <div className="w-0.5 h-5 bg-[#d4a843] rounded-sm" />
-          <span className="text-[#d4a843] font-mono text-[10px] font-extrabold tracking-[0.22em] uppercase">Contact Profile</span>
+          <div className="w-[3px] h-5 rounded-sm bg-[#d4a843]" style={{ boxShadow: "0 0 10px rgba(212,168,67,0.5)" }} />
+          <span className="text-[#d4a843] text-[10px] font-extrabold tracking-[0.22em] uppercase"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            Contact Profile
+          </span>
+          <div className="flex-1" />
+
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2">
+            {/* Research Button */}
+            <button
+              onClick={() => researchMutation.mutate({ id: contactId })}
+              disabled={researchMutation.isPending}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold tracking-wider uppercase transition-all hover:bg-[rgba(245,158,11,0.15)]"
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                background: "rgba(245,158,11,0.08)",
+                border: "1px solid rgba(245,158,11,0.25)",
+                color: "#f59e0b",
+              }}
+              title="AI-powered intelligence research"
+            >
+              <Sparkles size={12} className={researchMutation.isPending ? "animate-spin" : ""} />
+              {researchMutation.isPending ? "Researching..." : "Research"}
+            </button>
+
+            {/* Add Info Button */}
+            <button
+              onClick={() => setShowAddInfo(!showAddInfo)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold tracking-wider uppercase transition-all"
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                background: showAddInfo ? "rgba(248,113,113,0.08)" : "rgba(212,168,67,0.08)",
+                border: `1px solid ${showAddInfo ? "rgba(248,113,113,0.25)" : "rgba(212,168,67,0.25)"}`,
+                color: showAddInfo ? "#f87171" : "#d4a843",
+              }}
+            >
+              {showAddInfo ? <><X size={12} /> Cancel</> : <><Info size={12} /> Add Info</>}
+            </button>
+
+            {/* Email Button */}
+            {contact.email && (
+              <a
+                href={`mailto:${contact.email}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold tracking-wider uppercase transition-all hover:bg-[rgba(96,165,250,0.15)]"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: "rgba(96,165,250,0.08)",
+                  border: "1px solid rgba(96,165,250,0.25)",
+                  color: "#60a5fa",
+                  textDecoration: "none",
+                }}
+              >
+                <Mail size={12} /> Email
+              </a>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-6 py-10">
-        {/* Name & Tier */}
-        <div className="flex items-start gap-4 mb-8">
-          <div className="w-14 h-14 rounded-lg bg-[#151f38] border border-[#1a3a6a] flex items-center justify-center text-[#d4a843] text-xl font-bold font-mono">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        {/* ═══ PROFILE HEADER ═══ */}
+        <div className="flex items-start gap-5 mb-8">
+          <div className="w-16 h-16 rounded-lg bg-[#151f38] border border-[#1a3a6a] flex items-center justify-center text-[#d4a843] text-2xl font-bold shrink-0"
+            style={{ fontFamily: "'JetBrains Mono', monospace", boxShadow: "0 0 20px rgba(212,168,67,0.08)" }}>
             {contact.name.charAt(0)}
           </div>
-          <div className="flex-1">
-            <h1 className="text-2xl font-semibold text-[#c8d8f0] mb-1" style={{ fontFamily: "'Syne', sans-serif" }}>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-bold text-[#c8d8f0] mb-1.5" style={{ fontFamily: "'Syne', sans-serif" }}>
               {contact.name}
             </h1>
-            <div className="flex items-center gap-3">
-              {contact.role && <span className="text-[#4a6080] font-mono text-xs tracking-wider">{contact.role}</span>}
+            <div className="flex items-center gap-3 flex-wrap">
+              {contact.role && (
+                <span className="text-[#4a6080] text-xs tracking-wider" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  {contact.role}
+                </span>
+              )}
               {contact.tier && (
-                <StatusBadge variant={contact.tier === 'Tier 1' ? 'success' : contact.tier === 'Tier 2' ? 'info' : 'danger'}>
-                  {contact.tier}
-                </StatusBadge>
+                <TierBadge tier={contact.tier} />
+              )}
+              {contact.lastResearchedAt && (
+                <span className="text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    background: "rgba(245,158,11,0.08)",
+                    border: "1px solid rgba(245,158,11,0.2)",
+                    color: "#f59e0b",
+                  }}>
+                  Researched {new Date(contact.lastResearchedAt).toLocaleDateString()}
+                </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* Info Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {contact.organization && <InfoCard icon={<Building size={16} />} label="Organization" value={contact.organization} />}
-          {contact.location && <InfoCard icon={<MapPin size={16} />} label="Location" value={contact.location} />}
-          {contact.group && <InfoCard icon={<Users size={16} />} label="Group" value={contact.group} />}
-          {contact.role && <InfoCard icon={<Briefcase size={16} />} label="Role" value={contact.role} />}
-          {contact.email && <InfoCard icon={<Mail size={16} />} label="Email" value={contact.email} href={`mailto:${contact.email}`} />}
-          {contact.phone && <InfoCard icon={<Phone size={16} />} label="Phone" value={contact.phone} href={`tel:${contact.phone}`} />}
+        {/* ═══ ADD INFO FORM ═══ */}
+        {showAddInfo && (
+          <div className="mb-8 p-5 rounded-lg" style={{ background: "#060914", border: "1px solid #1a3a6a" }}>
+            <div className="flex items-center gap-2 mb-4">
+              <Edit3 size={14} className="text-[#d4a843]" />
+              <span className="text-[#d4a843] text-[10px] font-extrabold tracking-[0.18em] uppercase"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Update Contact Information
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {([
+                { key: "name", label: "Name", placeholder: contact.name },
+                { key: "role", label: "Role / Title", placeholder: contact.role || "e.g. Managing Director" },
+                { key: "organization", label: "Organization", placeholder: contact.organization || "e.g. Acme Corp" },
+                { key: "location", label: "Location", placeholder: contact.location || "e.g. Bogotá, Colombia" },
+                { key: "email", label: "Email", placeholder: contact.email || "e.g. name@example.com" },
+                { key: "phone", label: "Phone", placeholder: contact.phone || "e.g. +1 555 123 4567" },
+                { key: "group", label: "Group", placeholder: contact.group || "e.g. Colombian VC" },
+                { key: "tier", label: "Tier", placeholder: contact.tier || "e.g. Tier 1" },
+                { key: "linkedinUrl", label: "LinkedIn URL", placeholder: contact.linkedinUrl || "https://linkedin.com/in/..." },
+              ] as { key: string; label: string; placeholder: string }[]).map(field => (
+                <div key={field.key}>
+                  <label className="block text-[#4a6080] text-[9px] font-extrabold tracking-[0.18em] uppercase mb-1.5"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {field.label}
+                  </label>
+                  <input
+                    type="text"
+                    value={editFields[field.key] ?? ""}
+                    onChange={(e) => setEditFields(prev => ({ ...prev, [field.key]: e.target.value }))}
+                    placeholder={field.placeholder}
+                    className="w-full px-3 py-2 rounded text-[12px] text-[#c8d8f0] placeholder-[#2a3a54] bg-[#0a0c18] border border-[#151f38] outline-none focus:border-[#1a3a6a] transition-colors"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  />
+                </div>
+              ))}
+            </div>
+            {/* Notes field (full width) */}
+            <div className="mt-3">
+              <label className="block text-[#4a6080] text-[9px] font-extrabold tracking-[0.18em] uppercase mb-1.5"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Notes
+              </label>
+              <textarea
+                value={editFields.notes ?? ""}
+                onChange={(e) => setEditFields(prev => ({ ...prev, notes: e.target.value }))}
+                placeholder={contact.notes || "Additional notes about this contact..."}
+                className="w-full px-3 py-2 rounded text-[12px] text-[#c8d8f0] placeholder-[#2a3a54] bg-[#0a0c18] border border-[#151f38] outline-none focus:border-[#1a3a6a] transition-colors resize-none"
+                style={{ fontFamily: "'JetBrains Mono', monospace", minHeight: 80 }}
+              />
+            </div>
+            <div className="flex justify-end mt-4">
+              <button
+                onClick={handleSaveInfo}
+                disabled={updateMutation.isPending}
+                className="flex items-center gap-1.5 px-4 py-2 rounded text-[11px] font-bold tracking-wider uppercase disabled:opacity-40 transition-all"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: "#d4a843",
+                  color: "#0a0c18",
+                }}
+              >
+                <Save size={12} />
+                {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ═══ INFO GRID ═══ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+          {contact.organization && <InfoCard icon={<Building size={15} />} label="Organization" value={contact.organization} />}
+          {contact.location && <InfoCard icon={<MapPin size={15} />} label="Location" value={contact.location} />}
+          {contact.group && <InfoCard icon={<Users size={15} />} label="Group" value={contact.group} />}
+          {contact.role && <InfoCard icon={<Briefcase size={15} />} label="Role" value={contact.role} />}
+          {contact.email && (
+            <InfoCard icon={<Mail size={15} />} label="Email" value={contact.email}
+              action={<a href={`mailto:${contact.email}`} className="text-[#60a5fa] hover:text-[#93bbfc] transition-colors"><ExternalLink size={12} /></a>} />
+          )}
+          {contact.phone && (
+            <InfoCard icon={<Phone size={15} />} label="Phone" value={contact.phone}
+              action={<a href={`tel:${contact.phone}`} className="text-[#60a5fa] hover:text-[#93bbfc] transition-colors"><ExternalLink size={12} /></a>} />
+          )}
+          {contact.linkedinUrl && (
+            <InfoCard icon={<Linkedin size={15} />} label="LinkedIn" value={contact.linkedinUrl}
+              action={<a href={contact.linkedinUrl} target="_blank" rel="noopener noreferrer" className="text-[#60a5fa] hover:text-[#93bbfc] transition-colors"><ExternalLink size={12} /></a>} />
+          )}
         </div>
 
         {/* Static Notes */}
         {contact.notes && (
-          <PanelCard className="mt-6">
+          <div className="p-4 rounded-lg bg-[#060914] border border-[#151f38] mb-6">
             <div className="flex items-center gap-2 mb-3">
               <Tag size={14} className="text-[#d4a843]" />
-              <span className="text-[#d4a843] font-mono text-[9px] font-extrabold tracking-[0.18em] uppercase">Notes</span>
+              <span className="text-[#d4a843] text-[9px] font-extrabold tracking-[0.18em] uppercase"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>Notes</span>
             </div>
-            <p className="text-[#4a6080] font-mono text-sm leading-relaxed">{contact.notes}</p>
-          </PanelCard>
+            <p className="text-[#4a6080] text-sm leading-relaxed" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              {contact.notes}
+            </p>
+          </div>
         )}
 
         {/* Meeting Notes / Relationship Logs */}
         <MeetingNotesSection contactId={contactId} />
       </div>
-    </PageShell>
+    </div>
   );
 }
 
@@ -134,103 +334,133 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
   });
 
   return (
-    <div className="mt-8">
+    <div className="mt-2">
       <div className="flex items-center justify-between mb-4">
-        <SectionHeader title="Relationship Log" count={notes?.length ?? 0} />
+        <div className="flex items-center gap-3">
+          <div className="w-[3px] h-4 rounded-sm bg-[#d4a843]" style={{ boxShadow: "0 0 10px rgba(212,168,67,0.5)" }} />
+          <span className="text-[#d4a843] text-[10px] font-extrabold tracking-[0.22em] uppercase"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            Relationship Log
+          </span>
+          <span className="text-[#4a6080] text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            [{notes?.length ?? 0}]
+          </span>
+        </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase transition-all"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold tracking-wider uppercase transition-all"
           style={{
-            background: showForm ? "rgba(248,113,113,0.1)" : "rgba(212,168,67,0.1)",
-            border: `1px solid ${showForm ? "rgba(248,113,113,0.3)" : "rgba(212,168,67,0.3)"}`,
+            fontFamily: "'JetBrains Mono', monospace",
+            background: showForm ? "rgba(248,113,113,0.08)" : "rgba(212,168,67,0.08)",
+            border: `1px solid ${showForm ? "rgba(248,113,113,0.25)" : "rgba(212,168,67,0.25)"}`,
             color: showForm ? "#f87171" : "#d4a843",
           }}
         >
-          {showForm ? "Cancel" : <><Plus size={12} /> Add Note</>}
+          {showForm ? <><X size={12} /> Cancel</> : <><Plus size={12} /> Add Note</>}
         </button>
       </div>
 
       {/* Add Note Form */}
       {showForm && (
-        <PanelCard className="mb-4">
+        <div className="p-4 rounded-lg bg-[#060914] border border-[#151f38] mb-4">
           <div className="flex gap-2 mb-3 flex-wrap">
-            {(Object.keys(NOTE_TYPE_META) as Array<keyof typeof NOTE_TYPE_META>).map((type) => {
-              const meta = NOTE_TYPE_META[type];
-              const isActive = noteType === type;
-              return (
-                <button
-                  key={type}
-                  onClick={() => setNoteType(type as typeof noteType)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-[10px] tracking-wider uppercase transition-all"
-                  style={{
-                    background: isActive ? `${meta.color}18` : "transparent",
-                    border: `1px solid ${isActive ? `${meta.color}50` : "#151f38"}`,
-                    color: isActive ? meta.color : "#4a6080",
-                  }}
-                >
-                  {meta.icon} {meta.label}
-                </button>
-              );
-            })}
+            {(Object.entries(NOTE_TYPE_META) as [string, typeof NOTE_TYPE_META[string]][])
+              .filter(([key]) => key !== "research")
+              .map(([type, meta]) => {
+                const isActive = noteType === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setNoteType(type as typeof noteType)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] tracking-wider uppercase transition-all"
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      background: isActive ? `${meta.color}18` : "transparent",
+                      border: `1px solid ${isActive ? `${meta.color}50` : "#151f38"}`,
+                      color: isActive ? meta.color : "#4a6080",
+                    }}
+                  >
+                    {meta.icon} {meta.label}
+                  </button>
+                );
+              })}
           </div>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="Log your interaction, meeting notes, follow-up items..."
-            className="w-full p-3 rounded font-mono text-sm text-[#c8d8f0] placeholder-[#2a3a54] resize-none mb-3"
-            style={{ background: "#0a0c18", border: "1px solid #151f38", outline: "none", minHeight: 120 }}
+            className="w-full p-3 rounded text-sm text-[#c8d8f0] placeholder-[#2a3a54] resize-none mb-3 bg-[#0a0c18] border border-[#151f38] outline-none focus:border-[#1a3a6a] transition-colors"
+            style={{ fontFamily: "'JetBrains Mono', monospace", minHeight: 120 }}
             maxLength={10000}
           />
           <button
             onClick={() => content.trim() && addMutation.mutate({ contactId, noteType, content: content.trim() })}
             disabled={!content.trim() || addMutation.isPending}
-            className="px-4 py-2 rounded font-mono text-xs font-bold tracking-wider uppercase disabled:opacity-40"
-            style={{ background: "#d4a843", color: "#0a0c18" }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded text-xs font-bold tracking-wider uppercase disabled:opacity-40 transition-all"
+            style={{ fontFamily: "'JetBrains Mono', monospace", background: "#d4a843", color: "#0a0c18" }}
           >
+            <Save size={12} />
             {addMutation.isPending ? "Saving..." : "Save Note"}
           </button>
-        </PanelCard>
+        </div>
       )}
 
       {/* Notes List */}
       {isLoading ? (
         <div className="text-center py-8">
-          <span className="text-[#4a6080] font-mono text-sm animate-pulse">Loading notes...</span>
+          <span className="text-[#4a6080] text-sm animate-pulse" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            Loading notes...
+          </span>
         </div>
       ) : !notes?.length ? (
-        <EmptyState text="No relationship logs yet" />
+        <div className="text-center py-10 rounded-lg bg-[#060914] border border-[#151f38]">
+          <span className="text-[#2a3a54] text-sm" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            No relationship logs yet
+          </span>
+        </div>
       ) : (
         <div className="space-y-2">
           {notes.map((note) => {
             const meta = NOTE_TYPE_META[note.noteType] ?? NOTE_TYPE_META.general;
+            const isResearch = note.noteType === "research";
             return (
-              <PanelCard key={note.id} className="group">
+              <div key={note.id} className="p-4 rounded-lg bg-[#060914] border border-[#151f38] group transition-colors hover:border-[#1a3a6a]">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded font-mono text-[9px] font-bold tracking-wider uppercase"
-                      style={{ background: `${meta.color}12`, border: `1px solid ${meta.color}30`, color: meta.color }}>
+                    <span className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-bold tracking-wider uppercase"
+                      style={{
+                        fontFamily: "'JetBrains Mono', monospace",
+                        background: `${meta.color}12`,
+                        border: `1px solid ${meta.color}30`,
+                        color: meta.color,
+                      }}>
                       {meta.icon} {meta.label}
                     </span>
-                    <span className="text-[#4a6080] font-mono text-[10px]">
+                    <span className="text-[#4a6080] text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       {note.authorName || note.authorEmail}
                     </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[#2a3a54] font-mono text-[10px]">
+                    <span className="text-[#2a3a54] text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                       {new Date(note.createdAt).toLocaleString()}
                     </span>
                     {deleteConfirmId === note.id ? (
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => deleteMutation.mutate({ id: note.id })}
-                          className="text-[#f87171] font-mono text-[9px] font-bold px-2 py-0.5 rounded"
-                          style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)" }}
+                          className="text-[#f87171] text-[9px] font-bold px-2 py-0.5 rounded transition-all"
+                          style={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            background: "rgba(248,113,113,0.1)",
+                            border: "1px solid rgba(248,113,113,0.3)",
+                          }}
                         >
                           Confirm
                         </button>
                         <button
                           onClick={() => setDeleteConfirmId(null)}
-                          className="text-[#4a6080] font-mono text-[9px] px-2 py-0.5"
+                          className="text-[#4a6080] text-[9px] px-2 py-0.5"
+                          style={{ fontFamily: "'JetBrains Mono', monospace" }}
                         >
                           Cancel
                         </button>
@@ -246,8 +476,18 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
                     )}
                   </div>
                 </div>
-                <p className="text-[#c8d8f0] font-mono text-sm leading-relaxed whitespace-pre-wrap">{note.content}</p>
-              </PanelCard>
+                {isResearch ? (
+                  <div className="prose prose-invert prose-sm max-w-none text-[#c8d8f0]"
+                    style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 13 }}>
+                    <Streamdown>{note.content}</Streamdown>
+                  </div>
+                ) : (
+                  <p className="text-[#c8d8f0] text-sm leading-relaxed whitespace-pre-wrap"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {note.content}
+                  </p>
+                )}
+              </div>
             );
           })}
         </div>
@@ -257,17 +497,43 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// SUB-COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════
 
-function InfoCard({ icon, label, value, href }: { icon: React.ReactNode; label: string; value: string; href?: string }) {
-  const inner = (
-    <PanelCard className="hover:border-[#1a3a6a] transition-colors">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-[#d4a843]">{icon}</span>
-        <span className="text-[#4a6080] font-mono text-[9px] font-extrabold tracking-[0.18em] uppercase">{label}</span>
+function InfoCard({ icon, label, value, action }: { icon: React.ReactNode; label: string; value: string; action?: React.ReactNode }) {
+  return (
+    <div className="p-4 rounded-lg bg-[#060914] border border-[#151f38] hover:border-[#1a3a6a] transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[#d4a843]">{icon}</span>
+          <span className="text-[#4a6080] text-[9px] font-extrabold tracking-[0.18em] uppercase"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}>{label}</span>
+        </div>
+        {action}
       </div>
-      <div className="text-[#c8d8f0] font-mono text-sm">{value}</div>
-    </PanelCard>
+      <div className="text-[#c8d8f0] text-sm truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+        {value}
+      </div>
+    </div>
   );
-  if (href) return <a href={href} className="block no-underline">{inner}</a>;
-  return inner;
+}
+
+function TierBadge({ tier }: { tier: string }) {
+  const styles: Record<string, { bg: string; border: string; text: string }> = {
+    "Tier 1": { bg: "#0d1f0d", border: "#1a4a1a", text: "#4ade80" },
+    "Tier 2": { bg: "#0d1828", border: "#1a3a5a", text: "#60a5fa" },
+    "Tier 3": { bg: "#1f0d0d", border: "#4a1a1a", text: "#f87171" },
+  };
+  const s = styles[tier] ?? { bg: "#120d1f", border: "#2d1a5a", text: "#a78bfa" };
+  return (
+    <span className="text-[9px] font-extrabold tracking-[0.1em] uppercase px-2 py-0.5 rounded-sm"
+      style={{
+        fontFamily: "'JetBrains Mono', monospace",
+        background: s.bg,
+        border: `1px solid ${s.border}`,
+        color: s.text,
+      }}>
+      {tier}
+    </span>
+  );
 }

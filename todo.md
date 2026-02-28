@@ -33,3 +33,17 @@
 - [x] Codebase refactor — remove redundancy, optimize performance, improve structure
 - [x] Write detailed review document
 - [x] Phase 2 checkpoint
+
+## Phase 3 — Implement Suggestions + Polish
+- [x] LLM-powered "Research Contact" button on profiles
+- [x] Contact list/table view (toggleable alongside globe)
+- [x] Contact editing (Add Info form: phone, email, notes, role changes)
+- [x] Email button on contacts (mailto: link)
+- [x] "Last Contacted" indicator on profiles and list
+- [x] Aesthetic polish: spacing, typography, transitions, hover states
+- [x] Premium intelligence dashboard aesthetic
+- [x] Admin panel: Invite button (add to whitelist + send invite)
+- [x] Admin panel: visual polish and improved UX
+- [x] Verify Google OAuth flow is fully working
+- [x] Phase 3 tests (32 total passing)
+- [x] Phase 3 checkpoint

@@ -34,6 +34,8 @@ export const contacts = mysqlTable("contacts", {
   email: varchar("email", { length: 320 }),
   phone: varchar("phone", { length: 50 }),
   notes: text("notes"),
+  linkedinUrl: varchar("linkedinUrl", { length: 500 }),
+  lastResearchedAt: timestamp("lastResearchedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
@@ -80,7 +82,7 @@ export const meetingNotes = mysqlTable("meeting_notes", {
   contactId: int("contactId").notNull(),
   authorEmail: varchar("authorEmail", { length: 320 }).notNull(),
   authorName: varchar("authorName", { length: 255 }),
-  noteType: mysqlEnum("noteType", ["meeting", "call", "email", "follow_up", "general"]).default("general").notNull(),
+  noteType: mysqlEnum("noteType", ["meeting", "call", "email", "follow_up", "general", "research"]).default("general").notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -89,12 +91,17 @@ export const meetingNotes = mysqlTable("meeting_notes", {
 export type MeetingNote = typeof meetingNotes.$inferSelect;
 
 // ═══════════════════════════════════════════════════════════════════════
-// AUDIT LOG — tracks profile views, note additions, note deletions
+// AUDIT LOG — tracks all platform activity
 // ═══════════════════════════════════════════════════════════════════════
 
 export const auditLog = mysqlTable("audit_log", {
   id: int("id").autoincrement().primaryKey(),
-  action: mysqlEnum("action", ["profile_view", "note_added", "note_deleted", "access_approved", "access_denied", "whitelist_added", "whitelist_removed"]).notNull(),
+  action: mysqlEnum("action", [
+    "profile_view", "note_added", "note_deleted",
+    "access_approved", "access_denied",
+    "whitelist_added", "whitelist_removed",
+    "contact_updated", "contact_researched", "invite_sent",
+  ]).notNull(),
   actorEmail: varchar("actorEmail", { length: 320 }).notNull(),
   actorName: varchar("actorName", { length: 255 }),
   targetType: varchar("targetType", { length: 50 }),

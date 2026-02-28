@@ -3,14 +3,15 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, adminProcedure, router } from "./_core/trpc";
 import { notifyOwner } from "./_core/notification";
+import { invokeLLM } from "./_core/llm";
 import { z } from "zod";
 import {
-  getAllContacts, getContactById,
+  getAllContacts, getContactById, updateContact, setContactResearchedAt, getLastContactedMap,
   isEmailWhitelisted, getAllWhitelistEntries, addToWhitelist, removeFromWhitelist,
   createAccessRequest, getAllAccessRequests, getPendingAccessRequests,
   updateAccessRequestStatus, hasExistingPendingRequest,
   getNotesByContactId, addMeetingNote, deleteMeetingNote, getMeetingNoteById,
-  logAudit, getAuditLog,
+  logAudit, getAuditLog, getAdminStats,
 } from "./db";
 
 const ADMIN_EMAIL = "Powelljohn9521@gmail.com";
@@ -25,7 +26,6 @@ export const appRouter = router({
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
     }),
-    /** Check if the current user's email is whitelisted */
     checkAccess: protectedProcedure.query(async ({ ctx }) => {
       const email = ctx.user.email;
       if (!email) return { whitelisted: false, isAdmin: false };
@@ -41,17 +41,91 @@ export const appRouter = router({
 
   contacts: router({
     list: protectedProcedure.query(async () => {
-      return getAllContacts();
+      const [contactsList, lastContactedMap] = await Promise.all([
+        getAllContacts(),
+        getLastContactedMap(),
+      ]);
+      return contactsList.map(c => ({
+        ...c,
+        lastContacted: lastContactedMap.get(c.id) ?? null,
+      }));
     }),
+
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
       .query(async ({ input, ctx }) => {
         const contact = await getContactById(input.id);
-        // Log profile view
         if (contact && ctx.user.email) {
           await logAudit("profile_view", ctx.user.email, ctx.user.name ?? null, "contact", input.id, contact.name);
         }
         return contact;
+      }),
+
+    update: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        name: z.string().min(1).optional(),
+        role: z.string().optional(),
+        organization: z.string().optional(),
+        location: z.string().optional(),
+        group: z.string().optional(),
+        tier: z.string().optional(),
+        email: z.string().optional(),
+        phone: z.string().optional(),
+        notes: z.string().optional(),
+        linkedinUrl: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const { id, ...data } = input;
+        const updated = await updateContact(id, data);
+        if (ctx.user.email) {
+          const fields = Object.keys(data).filter(k => data[k as keyof typeof data] !== undefined);
+          await logAudit("contact_updated", ctx.user.email, ctx.user.name ?? null, "contact", id, `Updated: ${fields.join(", ")}`);
+        }
+        return updated;
+      }),
+
+    research: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const contact = await getContactById(input.id);
+        if (!contact) throw new Error("Contact not found");
+
+        const prompt = `You are a strategic intelligence analyst. Research and provide a concise intelligence briefing about this person:
+
+Name: ${contact.name}
+Role: ${contact.role || "Unknown"}
+Organization: ${contact.organization || "Unknown"}
+Location: ${contact.location || "Unknown"}
+
+Provide:
+1. A brief background summary (2-3 sentences)
+2. Their organization's key activities and relevance
+3. Recent notable developments or news (if any publicly known)
+4. Strategic significance and potential talking points
+5. Any known connections to major industry or political networks
+
+Keep it factual, concise, and actionable. Format with clear sections using markdown headers.`;
+
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: "You are a strategic intelligence analyst providing concise, factual briefings on key contacts. Be professional and avoid speculation." },
+            { role: "user", content: prompt },
+          ],
+        });
+
+        const researchContent = String(response.choices?.[0]?.message?.content || "Research unavailable at this time.");
+
+        // Save as a research note
+        const note = await addMeetingNote(
+          input.id, ctx.user.email!, ctx.user.name ?? null,
+          "research", researchContent,
+        );
+
+        await setContactResearchedAt(input.id);
+        await logAudit("contact_researched", ctx.user.email!, ctx.user.name ?? null, "contact", input.id, contact.name);
+
+        return note;
       }),
   }),
 
@@ -68,11 +142,10 @@ export const appRouter = router({
         const existing = await hasExistingPendingRequest(email);
         if (existing) return { alreadyPending: true };
         await createAccessRequest(email, ctx.user.name ?? null, input.reason ?? null);
-        // Notify admin
         try {
           await notifyOwner({
             title: "New Access Request",
-            content: `${ctx.user.name ?? email} (${email}) has requested access to Strategic Network Intelligence.\n\nReason: ${input.reason || "No reason provided"}`,
+            content: `${ctx.user.name ?? email} (${email}) has requested access.\n\nReason: ${input.reason || "No reason provided"}`,
           });
         } catch (_) { /* non-critical */ }
         return { alreadyPending: false };
@@ -98,7 +171,7 @@ export const appRouter = router({
     add: protectedProcedure
       .input(z.object({
         contactId: z.number(),
-        noteType: z.enum(["meeting", "call", "email", "follow_up", "general"]),
+        noteType: z.enum(["meeting", "call", "email", "follow_up", "general", "research"]),
         content: z.string().min(1).max(10000),
       }))
       .mutation(async ({ ctx, input }) => {
@@ -125,7 +198,8 @@ export const appRouter = router({
   // ═══════════════════════════════════════════════════════════════════
 
   admin: router({
-    // Whitelist management
+    stats: adminProcedure.query(async () => getAdminStats()),
+
     whitelist: router({
       list: adminProcedure.query(async () => getAllWhitelistEntries()),
       add: adminProcedure
@@ -144,19 +218,16 @@ export const appRouter = router({
         }),
     }),
 
-    // Access request management
     requests: router({
       list: adminProcedure.query(async () => getAllAccessRequests()),
       pending: adminProcedure.query(async () => getPendingAccessRequests()),
       approve: adminProcedure
         .input(z.object({ id: z.number() }))
         .mutation(async ({ ctx, input }) => {
-          // Get request to find email
           const requests = await getAllAccessRequests();
           const req = requests.find(r => r.id === input.id);
           if (!req) throw new Error("Request not found");
           await updateAccessRequestStatus(input.id, "approved", ctx.user.email!);
-          // Auto-add to whitelist
           await addToWhitelist(req.email, ctx.user.email!);
           await logAudit("access_approved", ctx.user.email!, ctx.user.name ?? null, "access_request", input.id, req.email);
           return { success: true };
@@ -173,17 +244,37 @@ export const appRouter = router({
         }),
     }),
 
-    // Audit log
+    invite: adminProcedure
+      .input(z.object({ email: z.string().email(), message: z.string().max(500).optional() }))
+      .mutation(async ({ ctx, input }) => {
+        // Add to whitelist
+        await addToWhitelist(input.email, ctx.user.email!);
+        await logAudit("invite_sent", ctx.user.email!, ctx.user.name ?? null, "whitelist", undefined, input.email);
+        // Notify owner about the invite
+        try {
+          await notifyOwner({
+            title: "Platform Invite Sent",
+            content: `${ctx.user.name ?? ctx.user.email} invited ${input.email} to the platform.\n\n${input.message ? `Message: ${input.message}` : ""}`,
+          });
+        } catch (_) { /* non-critical */ }
+        return { success: true };
+      }),
+
     auditLog: router({
       list: adminProcedure
         .input(z.object({
-          action: z.enum(["profile_view", "note_added", "note_deleted", "access_approved", "access_denied", "whitelist_added", "whitelist_removed"]).optional(),
+          action: z.enum([
+            "profile_view", "note_added", "note_deleted",
+            "access_approved", "access_denied",
+            "whitelist_added", "whitelist_removed",
+            "contact_updated", "contact_researched", "invite_sent",
+          ]).optional(),
           page: z.number().min(1).default(1),
           pageSize: z.number().min(1).max(100).default(25),
         }))
         .query(async ({ input }) => {
           const offset = (input.page - 1) * input.pageSize;
-          return getAuditLog({ action: input.action, limit: input.pageSize, offset });
+          return getAuditLog({ action: input.action as any, limit: input.pageSize, offset });
         }),
     }),
   }),
