@@ -97,3 +97,46 @@ export const auditLog = mysqlTable("audit_log", {
 
 export type AuditLogEntry = typeof auditLog.$inferSelect;
 export type InsertAuditLogEntry = typeof auditLog.$inferInsert;
+
+/**
+ * Contact updates — users can submit structured updates to contact info.
+ * Admin reviews and applies approved updates. Keeps contact data fresh.
+ */
+export const contactUpdates = mysqlTable("contact_updates", {
+  id: int("id").autoincrement().primaryKey(),
+  contactId: int("contactId").notNull(),
+  contactName: varchar("contactName", { length: 320 }).notNull(),
+  submittedById: int("submittedById").notNull(),
+  submittedByName: varchar("submittedByName", { length: 320 }).notNull(),
+  submittedByEmail: varchar("submittedByEmail", { length: 320 }).notNull(),
+  /** The field being updated (e.g., "email", "phone", "role", "linkedin") */
+  field: varchar("field", { length: 100 }).notNull(),
+  /** The new value for the field */
+  newValue: text("newValue").notNull(),
+  /** Optional context / reason for the update */
+  context: text("context"),
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  reviewedBy: varchar("reviewedBy", { length: 320 }),
+  reviewedAt: timestamp("reviewedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ContactUpdate = typeof contactUpdates.$inferSelect;
+export type InsertContactUpdate = typeof contactUpdates.$inferInsert;
+
+/**
+ * Invitations — admin can invite people by email.
+ * Tracks who was invited, when, and by whom.
+ */
+export const invitations = mysqlTable("invitations", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(),
+  name: text("name"),
+  invitedBy: varchar("invitedBy", { length: 320 }).notNull(),
+  message: text("message"),
+  status: mysqlEnum("status", ["pending", "accepted"]).default("pending").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type Invitation = typeof invitations.$inferSelect;
+export type InsertInvitation = typeof invitations.$inferInsert;

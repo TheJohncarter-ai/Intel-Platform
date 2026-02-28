@@ -20,8 +20,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash,
+  Mail,
+  Send,
+  Pencil,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 import { Link } from "wouter";
+import { toast } from "sonner";
 
 interface AdminPanelProps {
   onLogout: () => void;
@@ -34,13 +40,20 @@ const ACTION_CONFIG = {
 } as const;
 
 export default function AdminPanel({ onLogout }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<"requests" | "whitelist" | "audit">("requests");
+  const [activeTab, setActiveTab] = useState<"requests" | "whitelist" | "updates" | "audit">("requests");
   const [statusFilter, setStatusFilter] = useState<"pending" | "approved" | "denied" | undefined>("pending");
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
   const [auditActionFilter, setAuditActionFilter] = useState<"profile_view" | "note_added" | "note_deleted" | undefined>(undefined);
   const [auditPage, setAuditPage] = useState(0);
   const AUDIT_PAGE_SIZE = 30;
+
+  // Invite state
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteMessage, setInviteMessage] = useState("");
+  const [inviteResult, setInviteResult] = useState<{ platformUrl: string } | null>(null);
 
   const utils = trpc.useUtils();
 
@@ -65,16 +78,24 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
       { refetchOnWindowFocus: false }
     );
 
+  const { data: contactUpdates, isLoading: updatesLoading } =
+    trpc.admin.listContactUpdates.useQuery(
+      { status: "pending" },
+      { refetchOnWindowFocus: false }
+    );
+
   const approveMutation = trpc.admin.approveRequest.useMutation({
     onSuccess: () => {
       utils.admin.listRequests.invalidate();
       utils.admin.listWhitelist.invalidate();
+      toast.success("Request approved — user added to whitelist");
     },
   });
 
   const denyMutation = trpc.admin.denyRequest.useMutation({
     onSuccess: () => {
       utils.admin.listRequests.invalidate();
+      toast.success("Request denied");
     },
   });
 
@@ -83,22 +104,69 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
       utils.admin.listWhitelist.invalidate();
       setNewEmail("");
       setNewName("");
+      toast.success("Email added to whitelist");
     },
+    onError: (err) => toast.error(err.message),
   });
 
   const removeWhitelistMutation = trpc.admin.removeWhitelist.useMutation({
     onSuccess: () => {
       utils.admin.listWhitelist.invalidate();
+      toast.success("Email removed from whitelist");
     },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const inviteMutation = trpc.admin.inviteUser.useMutation({
+    onSuccess: (data) => {
+      utils.admin.listWhitelist.invalidate();
+      setInviteResult(data);
+      toast.success(`Invitation created for ${inviteEmail}`);
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const reviewUpdateMutation = trpc.admin.reviewContactUpdate.useMutation({
+    onSuccess: (_, vars) => {
+      utils.admin.listContactUpdates.invalidate();
+      toast.success(`Update ${vars.action === "approve" ? "approved" : "rejected"}`);
+    },
+    onError: (err) => toast.error(err.message),
   });
 
   const handleRefresh = () => {
     utils.admin.listRequests.invalidate();
     utils.admin.listWhitelist.invalidate();
     utils.admin.auditLog.invalidate();
+    utils.admin.listContactUpdates.invalidate();
   };
 
   const totalAuditPages = auditData ? Math.ceil(auditData.total / AUDIT_PAGE_SIZE) : 0;
+  const pendingUpdatesCount = contactUpdates?.entries?.length ?? 0;
+
+  const handleInvite = () => {
+    if (!inviteEmail.trim()) return;
+    inviteMutation.mutate({
+      email: inviteEmail.trim(),
+      name: inviteName.trim() || undefined,
+      message: inviteMessage.trim() || undefined,
+    });
+  };
+
+  const resetInviteForm = () => {
+    setInviteEmail("");
+    setInviteName("");
+    setInviteMessage("");
+    setInviteResult(null);
+    setShowInviteForm(false);
+  };
+
+  const TABS = [
+    { id: "requests" as const, label: "ACCESS REQUESTS", icon: Clock },
+    { id: "whitelist" as const, label: "WHITELIST", icon: Users },
+    { id: "updates" as const, label: "INFO UPDATES", icon: Pencil, badge: pendingUpdatesCount },
+    { id: "audit" as const, label: "AUDIT LOG", icon: Activity },
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -133,46 +201,32 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
 
       <div className="max-w-5xl mx-auto px-6 py-6">
         {/* Tab navigation */}
-        <div className="flex gap-1 mb-6 bg-card border border-border rounded-lg p-1 w-fit">
-          <button
-            onClick={() => setActiveTab("requests")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-md font-mono-label text-[0.7rem] transition-colors ${
-              activeTab === "requests"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Clock size={12} />
-            ACCESS REQUESTS
-          </button>
-          <button
-            onClick={() => setActiveTab("whitelist")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-md font-mono-label text-[0.7rem] transition-colors ${
-              activeTab === "whitelist"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Users size={12} />
-            WHITELIST
-          </button>
-          <button
-            onClick={() => setActiveTab("audit")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-md font-mono-label text-[0.7rem] transition-colors ${
-              activeTab === "audit"
-                ? "bg-primary/10 text-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Activity size={12} />
-            AUDIT LOG
-          </button>
+        <div className="flex gap-1 mb-6 bg-card border border-border rounded-lg p-1 w-fit overflow-x-auto">
+          {TABS.map(({ id, label, icon: Icon, badge }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`relative flex items-center gap-1.5 px-4 py-2 rounded-md font-mono-label text-[0.7rem] transition-colors whitespace-nowrap ${
+                activeTab === id
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Icon size={12} />
+              {label}
+              {badge !== undefined && badge > 0 && (
+                <span className="ml-1 bg-amber-500/20 text-amber-400 text-[0.6rem] font-mono-label px-1.5 py-0.5 rounded-full">
+                  {badge}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
         {/* ─── Access Requests Tab ─── */}
         {activeTab === "requests" && (
           <div>
-            <div className="flex gap-1 mb-4">
+            <div className="flex gap-1 mb-4 flex-wrap">
               {(
                 [
                   { value: "pending", label: "Pending", icon: Clock },
@@ -203,7 +257,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
             ) : requests && requests.length > 0 ? (
               <div className="space-y-3">
                 {requests.map((req) => (
-                  <div key={req.id} className="bg-card border border-border rounded-lg p-4">
+                  <div key={req.id} className="bg-card border border-border rounded-lg p-4 transition-colors hover:border-border/80">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -220,9 +274,12 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                             {req.status.toUpperCase()}
                           </span>
                         </div>
-                        <p className="text-sm text-muted-foreground">{req.email}</p>
+                        <div className="flex items-center gap-2">
+                          <Mail size={11} className="text-muted-foreground" />
+                          <p className="text-sm text-muted-foreground">{req.email}</p>
+                        </div>
                         {req.reason && (
-                          <p className="text-xs text-muted-foreground/80 mt-2 bg-accent/50 rounded px-3 py-2">
+                          <p className="text-xs text-muted-foreground/80 mt-2 bg-accent/50 rounded px-3 py-2 italic">
                             "{req.reason}"
                           </p>
                         )}
@@ -233,11 +290,11 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                       </div>
 
                       {req.status === "pending" && (
-                        <div className="flex gap-2 ml-4">
+                        <div className="flex gap-2 ml-4 flex-shrink-0">
                           <Button
                             size="sm"
                             variant="outline"
-                            className="gap-1 text-green-500 hover:text-green-400 hover:bg-green-500/10"
+                            className="gap-1 text-green-500 hover:text-green-400 hover:bg-green-500/10 border-green-500/20"
                             onClick={() => approveMutation.mutate({ id: req.id })}
                             disabled={approveMutation.isPending}
                           >
@@ -247,7 +304,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="gap-1 text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                            className="gap-1 text-red-500 hover:text-red-400 hover:bg-red-500/10 border-red-500/20"
                             onClick={() => denyMutation.mutate({ id: req.id })}
                             disabled={denyMutation.isPending}
                           >
@@ -274,44 +331,151 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
         {/* ─── Whitelist Tab ─── */}
         {activeTab === "whitelist" && (
           <div>
-            <div className="bg-card border border-border rounded-lg p-4 mb-4">
-              <div className="flex items-center gap-2 mb-3">
-                <UserPlus size={14} className="text-primary" />
-                <span className="font-mono-label text-[0.7rem] text-primary">ADD TO WHITELIST</span>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="email"
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="email@example.com"
-                  className="flex-1 px-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
-                />
-                <input
-                  type="text"
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Name (optional)"
-                  className="w-48 px-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
-                />
-                <Button
-                  onClick={() =>
-                    addWhitelistMutation.mutate({
-                      email: newEmail,
-                      name: newName || undefined,
-                    })
-                  }
-                  disabled={!newEmail.trim() || addWhitelistMutation.isPending}
-                  className="gap-1"
-                >
-                  <UserPlus size={12} />
-                  Add
-                </Button>
-              </div>
-              {addWhitelistMutation.error && (
-                <p className="text-xs text-red-400 mt-2">{addWhitelistMutation.error.message}</p>
-              )}
+            {/* Action buttons */}
+            <div className="flex gap-2 mb-4 flex-wrap">
+              <Button
+                size="sm"
+                onClick={() => setShowInviteForm(!showInviteForm)}
+                className="gap-1.5"
+              >
+                <Send size={12} />
+                Invite by Email
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowInviteForm(false)}
+                className="gap-1.5"
+              >
+                <UserPlus size={12} />
+                Add to Whitelist
+              </Button>
             </div>
+
+            {/* Invite form */}
+            {showInviteForm && (
+              <div className="bg-card border border-primary/20 rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Send size={14} className="text-primary" />
+                  <span className="font-mono-label text-[0.7rem] text-primary">INVITE A COLLEAGUE</span>
+                </div>
+
+                {inviteResult ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-green-400 bg-green-400/10 rounded-md px-3 py-2">
+                      <CheckCircle size={14} />
+                      <span>{inviteEmail} has been added to the whitelist</span>
+                    </div>
+                    <div className="bg-accent/50 rounded-md p-3">
+                      <p className="text-xs text-muted-foreground mb-1.5 font-mono-label">SHARE THIS LINK WITH THEM:</p>
+                      <div className="flex items-center gap-2">
+                        <code className="text-sm text-primary flex-1 truncate">{inviteResult.platformUrl}</code>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(inviteResult.platformUrl);
+                            toast.success("Link copied!");
+                          }}
+                          className="flex-shrink-0 p-1.5 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <Copy size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      They can sign in with any Google account using this email address.
+                    </p>
+                    <Button variant="ghost" size="sm" onClick={resetInviteForm}>
+                      Send another invite
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex gap-2">
+                      <input
+                        type="email"
+                        value={inviteEmail}
+                        onChange={(e) => setInviteEmail(e.target.value)}
+                        placeholder="colleague@company.com"
+                        className="flex-1 px-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+                      />
+                      <input
+                        type="text"
+                        value={inviteName}
+                        onChange={(e) => setInviteName(e.target.value)}
+                        placeholder="Name (optional)"
+                        className="w-40 px-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+                      />
+                    </div>
+                    <textarea
+                      value={inviteMessage}
+                      onChange={(e) => setInviteMessage(e.target.value)}
+                      placeholder="Personal message (optional) — shown in your admin notification"
+                      rows={2}
+                      className="w-full px-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20 resize-none"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={handleInvite}
+                        disabled={!inviteEmail.trim() || inviteMutation.isPending}
+                        className="gap-1.5"
+                      >
+                        <Send size={12} />
+                        {inviteMutation.isPending ? "Inviting..." : "Send Invite"}
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={resetInviteForm}>
+                        Cancel
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      This will add the email to the whitelist immediately. Share the platform URL with them so they can sign in.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Quick add form */}
+            {!showInviteForm && (
+              <div className="bg-card border border-border rounded-lg p-4 mb-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <UserPlus size={14} className="text-primary" />
+                  <span className="font-mono-label text-[0.7rem] text-primary">ADD TO WHITELIST</span>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="email"
+                    value={newEmail}
+                    onChange={(e) => setNewEmail(e.target.value)}
+                    placeholder="email@example.com"
+                    className="flex-1 px-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+                  />
+                  <input
+                    type="text"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    placeholder="Name (optional)"
+                    className="w-48 px-3 py-2 bg-input border border-border rounded-md text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/20"
+                  />
+                  <Button
+                    onClick={() =>
+                      addWhitelistMutation.mutate({
+                        email: newEmail,
+                        name: newName || undefined,
+                      })
+                    }
+                    disabled={!newEmail.trim() || addWhitelistMutation.isPending}
+                    className="gap-1"
+                  >
+                    <UserPlus size={12} />
+                    Add
+                  </Button>
+                </div>
+                {addWhitelistMutation.error && (
+                  <p className="text-xs text-red-400 mt-2">{addWhitelistMutation.error.message}</p>
+                )}
+              </div>
+            )}
 
             {whitelistLoading ? (
               <div className="text-center py-12">
@@ -321,48 +485,58 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
               <div className="bg-card border border-border rounded-lg overflow-hidden">
                 <table className="w-full">
                   <thead>
-                    <tr className="border-b border-border">
+                    <tr className="border-b border-border bg-accent/30">
                       <th className="text-left px-4 py-3 font-mono-label text-[0.6rem] text-muted-foreground">EMAIL</th>
-                      <th className="text-left px-4 py-3 font-mono-label text-[0.6rem] text-muted-foreground">NAME</th>
-                      <th className="text-left px-4 py-3 font-mono-label text-[0.6rem] text-muted-foreground">APPROVED BY</th>
-                      <th className="text-left px-4 py-3 font-mono-label text-[0.6rem] text-muted-foreground">DATE</th>
+                      <th className="text-left px-4 py-3 font-mono-label text-[0.6rem] text-muted-foreground hidden sm:table-cell">NAME</th>
+                      <th className="text-left px-4 py-3 font-mono-label text-[0.6rem] text-muted-foreground hidden md:table-cell">APPROVED BY</th>
+                      <th className="text-left px-4 py-3 font-mono-label text-[0.6rem] text-muted-foreground hidden sm:table-cell">DATE</th>
                       <th className="text-right px-4 py-3 font-mono-label text-[0.6rem] text-muted-foreground">ACTIONS</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {whitelistEntries.map((entry) => (
-                      <tr key={entry.id} className="border-b border-border/50 last:border-0">
-                        <td className="px-4 py-3 text-sm text-foreground">
-                          {entry.email}
-                          {entry.email === "powelljohn9521@gmail.com" && (
-                            <span className="ml-2 px-1.5 py-0.5 rounded text-[0.55rem] font-mono-label bg-primary/10 text-primary">
-                              ADMIN
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{entry.name || "—"}</td>
-                        <td className="px-4 py-3 text-sm text-muted-foreground">{entry.approvedBy || "—"}</td>
-                        <td className="px-4 py-3 text-xs text-muted-foreground">
-                          {new Date(entry.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {entry.email !== "powelljohn9521@gmail.com" ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="text-red-500 hover:text-red-400 hover:bg-red-500/10 gap-1"
-                              onClick={() => removeWhitelistMutation.mutate({ email: entry.email })}
-                              disabled={removeWhitelistMutation.isPending}
-                            >
-                              <Trash2 size={11} />
-                              Remove
-                            </Button>
-                          ) : (
-                            <span className="text-[0.6rem] text-muted-foreground/40 font-mono-label">PROTECTED</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {whitelistEntries.map((entry) => {
+                      const isAdmin = entry.email === "powelljohn9521@gmail.com";
+                      return (
+                        <tr key={entry.id} className="border-b border-border/50 last:border-0 hover:bg-accent/20 transition-colors">
+                          <td className="px-4 py-3 text-sm text-foreground">
+                            <div className="flex items-center gap-2">
+                              <a
+                                href={`mailto:${entry.email}`}
+                                className="hover:text-primary transition-colors truncate max-w-[200px]"
+                              >
+                                {entry.email}
+                              </a>
+                              {isAdmin && (
+                                <span className="px-1.5 py-0.5 rounded text-[0.55rem] font-mono-label bg-primary/10 text-primary flex-shrink-0">
+                                  ADMIN
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{entry.name || "—"}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{entry.approvedBy || "—"}</td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground hidden sm:table-cell">
+                            {new Date(entry.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {!isAdmin ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-red-500 hover:text-red-400 hover:bg-red-500/10 gap-1"
+                                onClick={() => removeWhitelistMutation.mutate({ email: entry.email })}
+                                disabled={removeWhitelistMutation.isPending}
+                              >
+                                <Trash2 size={11} />
+                                Remove
+                              </Button>
+                            ) : (
+                              <span className="text-[0.6rem] text-muted-foreground/40 font-mono-label">PROTECTED</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -370,6 +544,91 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
               <div className="text-center py-12 bg-card border border-border rounded-lg">
                 <Users size={24} className="text-muted-foreground/40 mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">No whitelisted emails yet</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ─── Contact Info Updates Tab ─── */}
+        {activeTab === "updates" && (
+          <div>
+            <div className="flex items-center gap-3 mb-4">
+              <p className="text-xs text-muted-foreground">
+                Users can submit contact info updates from any profile card. Review and apply them here.
+              </p>
+            </div>
+
+            {updatesLoading ? (
+              <div className="text-center py-12">
+                <p className="text-sm text-muted-foreground">Loading updates...</p>
+              </div>
+            ) : contactUpdates && contactUpdates.entries.length > 0 ? (
+              <div className="space-y-3">
+                {contactUpdates.entries.map((update) => (
+                  <div key={update.id} className="bg-card border border-border rounded-lg p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <Link href={`/profile/${update.contactId}`}>
+                            <span className="font-display text-base text-foreground hover:text-primary cursor-pointer transition-colors">
+                              {update.contactName}
+                            </span>
+                          </Link>
+                          <span className="text-[0.6rem] font-mono-label bg-accent px-1.5 py-0.5 rounded text-muted-foreground">
+                            {update.field.toUpperCase()}
+                          </span>
+                        </div>
+
+                        <div className="bg-accent/50 rounded-md px-3 py-2 mb-2">
+                          <p className="text-xs text-muted-foreground mb-0.5 font-mono-label">NEW VALUE</p>
+                          <p className="text-sm text-foreground">{update.newValue}</p>
+                        </div>
+
+                        {update.context && (
+                          <p className="text-xs text-muted-foreground italic mb-2">
+                            Source: "{update.context}"
+                          </p>
+                        )}
+
+                        <div className="flex items-center gap-3 text-[0.6rem] text-muted-foreground/60 font-mono-label">
+                          <span>Submitted by {update.submittedByName} ({update.submittedByEmail})</span>
+                          <span>{new Date(update.createdAt).toLocaleString()}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2 flex-shrink-0">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 text-green-500 hover:text-green-400 hover:bg-green-500/10 border-green-500/20"
+                          onClick={() => reviewUpdateMutation.mutate({ id: update.id, action: "approve" })}
+                          disabled={reviewUpdateMutation.isPending}
+                        >
+                          <Check size={12} />
+                          Apply
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1 text-red-500 hover:text-red-400 hover:bg-red-500/10 border-red-500/20"
+                          onClick={() => reviewUpdateMutation.mutate({ id: update.id, action: "reject" })}
+                          disabled={reviewUpdateMutation.isPending}
+                        >
+                          <X size={12} />
+                          Reject
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-card border border-border rounded-lg">
+                <Pencil size={24} className="text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No pending contact updates</p>
+                <p className="text-xs text-muted-foreground/60 mt-1">
+                  Users can click "Update" on any contact card to submit new information
+                </p>
               </div>
             )}
           </div>
@@ -436,7 +695,7 @@ export default function AdminPanel({ onLogout }: AdminPanelProps) {
                     return (
                       <div
                         key={entry.id}
-                        className="bg-card border border-border rounded-lg p-3 flex items-start gap-3"
+                        className="bg-card border border-border rounded-lg p-3 flex items-start gap-3 hover:border-border/80 transition-colors"
                       >
                         {/* Action icon */}
                         <div className={`mt-0.5 p-1.5 rounded-md ${config?.bg ?? "bg-accent"}`}>

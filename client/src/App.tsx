@@ -8,6 +8,7 @@ import AuthGate from "./components/AuthGate";
 import Home from "./pages/Home";
 import ProfileDetail from "./pages/ProfileDetail";
 import Rankings from "./pages/Rankings";
+import GlobeView from "./pages/GlobeView";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
         <Route path="/" component={Home} />
         <Route path="/profile/:id" component={ProfileDetail} />
         <Route path="/rankings" component={Rankings} />
+        <Route path="/globe" component={GlobeView} />
         <Route path="/404" component={NotFound} />
         <Route component={NotFound} />
       </Switch>

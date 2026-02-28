@@ -11,6 +11,8 @@ import {
 import * as db from "./db";
 import { notifyOwner } from "./_core/notification";
 
+const PLATFORM_URL = process.env.PLATFORM_URL ?? "https://your-app.manus.app";
+
 export const appRouter = router({
   system: systemRouter,
 
@@ -190,6 +192,44 @@ export const appRouter = router({
       }),
   }),
 
+  /** Contact info updates — any whitelisted user can submit */
+  contactUpdate: router({
+    submit: protectedProcedure
+      .input(
+        z.object({
+          contactId: z.number(),
+          contactName: z.string(),
+          field: z.string().min(1),
+          newValue: z.string().min(1),
+          context: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await db.createContactUpdate({
+          contactId: input.contactId,
+          contactName: input.contactName,
+          submittedById: ctx.user.id,
+          submittedByName: ctx.user.name ?? "Unknown",
+          submittedByEmail: ctx.user.email ?? "unknown",
+          field: input.field,
+          newValue: input.newValue,
+          context: input.context ?? null,
+        });
+
+        // Notify admin of new update submission
+        try {
+          await notifyOwner({
+            title: "Contact Info Update — Strategic Network",
+            content: `${ctx.user.name ?? ctx.user.email} submitted an update for ${input.contactName}:\n\nField: ${input.field}\nNew Value: ${input.newValue}${input.context ? `\nContext: ${input.context}` : ""}\n\nReview it in the admin panel.`,
+          });
+        } catch (_) {
+          // Non-critical
+        }
+
+        return { success: true };
+      }),
+  }),
+
   /** Admin-only endpoints */
   admin: router({
     listRequests: adminProcedure
@@ -279,6 +319,76 @@ export const appRouter = router({
           throw new Error("Cannot remove the primary admin from the whitelist");
         }
         await db.removeFromWhitelist(input.email);
+        return { success: true };
+      }),
+
+    /** Invite a user by email — adds to whitelist and creates an invitation record */
+    inviteUser: adminProcedure
+      .input(
+        z.object({
+          email: z.string().email(),
+          name: z.string().optional(),
+          message: z.string().optional(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        // Add to whitelist immediately
+        await db.addToWhitelist({
+          email: input.email,
+          name: input.name ?? null,
+          approvedBy: ctx.user.email ?? "admin",
+        });
+
+        // Record the invitation
+        await db.createInvitation({
+          email: input.email,
+          name: input.name ?? null,
+          invitedBy: ctx.user.email ?? "admin",
+          message: input.message ?? null,
+        });
+
+        // Notify admin about the invite (so they remember to share the URL)
+        try {
+          await notifyOwner({
+            title: "Invitation Sent — Strategic Network",
+            content: `You invited ${input.name ? `${input.name} (${input.email})` : input.email} to Strategic Network Intelligence.\n\nThey have been added to the whitelist. Share this link with them:\n${PLATFORM_URL}\n\n${input.message ? `Your message: "${input.message}"` : ""}`,
+          });
+        } catch (_) {
+          // Non-critical
+        }
+
+        return { success: true, platformUrl: PLATFORM_URL };
+      }),
+
+    /** List all invitations */
+    listInvitations: adminProcedure.query(async () => {
+      return db.getInvitations();
+    }),
+
+    /** Contact updates — pending info updates submitted by users */
+    listContactUpdates: adminProcedure
+      .input(
+        z.object({
+          status: z.enum(["pending", "approved", "rejected"]).optional(),
+        }).optional()
+      )
+      .query(async ({ input }) => {
+        return db.getContactUpdates({ status: input?.status });
+      }),
+
+    reviewContactUpdate: adminProcedure
+      .input(
+        z.object({
+          id: z.number(),
+          action: z.enum(["approve", "reject"]),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await db.updateContactUpdateStatus(
+          input.id,
+          input.action === "approve" ? "approved" : "rejected",
+          ctx.user.email ?? "admin"
+        );
         return { success: true };
       }),
 

@@ -10,17 +10,20 @@ import { trpc } from "@/lib/trpc";
 import {
   Users,
   Trophy,
+  Globe,
   ChevronLeft,
   ChevronRight,
   Menu,
   X,
   Shield,
   LogOut,
+  Lock,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { path: "/", label: "NETWORK", icon: Users },
   { path: "/rankings", label: "RANKINGS", icon: Trophy },
+  { path: "/globe", label: "GLOBE VIEW", icon: Globe },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {
@@ -45,47 +48,46 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/70 z-40 lg:hidden backdrop-blur-sm"
           onClick={() => setMobileOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
+        style={{ width: collapsed ? "3.5rem" : "14.5rem" }}
         className={`
           fixed top-0 left-0 h-full z-50 flex flex-col
           border-r border-border bg-sidebar transition-all duration-200
-          ${collapsed ? "w-16" : "w-60"}
           ${mobileOpen ? "translate-x-0" : "-translate-x-full"}
           lg:translate-x-0 lg:relative
         `}
       >
         {/* Logo area */}
-        <div className="h-16 flex items-center px-4 border-b border-border">
-          {!collapsed && (
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded bg-primary/20 flex items-center justify-center">
-                <span className="text-primary font-bold text-sm">S</span>
+        <div className="h-14 flex items-center px-3 border-b border-border flex-shrink-0">
+          {!collapsed ? (
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-md bg-primary/15 border border-primary/25 flex items-center justify-center flex-shrink-0">
+                <Lock size={13} className="text-primary" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <div className="font-display text-sm text-foreground leading-tight">
                   Strategic
                 </div>
-                <div className="font-mono-label text-[0.6rem] text-muted-foreground tracking-widest">
+                <div className="font-mono-label text-[0.55rem] text-muted-foreground/70 tracking-widest truncate">
                   NETWORK INTEL
                 </div>
               </div>
             </div>
-          )}
-          {collapsed && (
-            <div className="w-7 h-7 rounded bg-primary/20 flex items-center justify-center mx-auto">
-              <span className="text-primary font-bold text-sm">S</span>
+          ) : (
+            <div className="w-7 h-7 rounded-md bg-primary/15 border border-primary/25 flex items-center justify-center mx-auto">
+              <Lock size={13} className="text-primary" />
             </div>
           )}
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 py-4 px-2 space-y-1">
+        <nav className="flex-1 py-3 px-2 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map((item) => {
             const isActive = location === item.path;
             const Icon = item.icon;
@@ -97,18 +99,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
               >
                 <div
                   className={`
-                    flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-150
+                    flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all duration-150 border
                     ${
                       isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                        ? "bg-primary/10 text-primary border-primary/15"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent border-transparent"
                     }
                     ${collapsed ? "justify-center" : ""}
                   `}
                 >
-                  <Icon size={18} strokeWidth={1.5} />
+                  <Icon size={16} strokeWidth={1.5} className="flex-shrink-0" />
                   {!collapsed && (
-                    <span className="font-mono-label text-[0.7rem]">
+                    <span className="font-mono-label text-[0.68rem] truncate">
                       {item.label}
                     </span>
                   )}
@@ -119,44 +121,47 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
           {/* Admin link */}
           {isAdmin && (
-            <Link href="/admin" onClick={() => setMobileOpen(false)}>
-              <div
-                className={`
-                  flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-150
-                  ${
-                    location === "/admin"
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                  }
-                  ${collapsed ? "justify-center" : ""}
-                `}
-              >
-                <Shield size={18} strokeWidth={1.5} />
-                {!collapsed && (
-                  <span className="font-mono-label text-[0.7rem]">ADMIN</span>
-                )}
-              </div>
-            </Link>
+            <>
+              <div className="h-px bg-border/60 mx-1 my-2" />
+              <Link href="/admin" onClick={() => setMobileOpen(false)}>
+                <div
+                  className={`
+                    flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all duration-150 border
+                    ${
+                      location === "/admin"
+                        ? "bg-primary/10 text-primary border-primary/15"
+                        : "text-muted-foreground hover:text-foreground hover:bg-accent border-transparent"
+                    }
+                    ${collapsed ? "justify-center" : ""}
+                  `}
+                >
+                  <Shield size={16} strokeWidth={1.5} className="flex-shrink-0" />
+                  {!collapsed && (
+                    <span className="font-mono-label text-[0.68rem]">ADMIN</span>
+                  )}
+                </div>
+              </Link>
+            </>
           )}
         </nav>
 
         {/* User info + sign out */}
-        <div className="border-t border-border p-2 space-y-1">
+        <div className="border-t border-border p-2 space-y-1 flex-shrink-0">
           {user && !collapsed && (
-            <div className="px-3 py-2">
-              <p className="text-xs text-foreground truncate">
+            <div className="px-2.5 py-2 rounded-md bg-accent/40">
+              <p className="text-xs text-foreground/90 truncate font-medium">
                 {user.name || "User"}
               </p>
-              <p className="text-[0.6rem] text-muted-foreground truncate">
+              <p className="text-[0.6rem] text-muted-foreground/70 truncate mt-0.5">
                 {user.email}
               </p>
             </div>
           )}
           <button
             onClick={logout}
-            className={`w-full flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent ${collapsed ? "justify-center" : ""}`}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent ${collapsed ? "justify-center" : ""}`}
           >
-            <LogOut size={16} strokeWidth={1.5} />
+            <LogOut size={15} strokeWidth={1.5} className="flex-shrink-0" />
             {!collapsed && (
               <span className="font-mono-label text-[0.65rem]">SIGN OUT</span>
             )}
@@ -166,12 +171,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="hidden lg:block">
             <button
               onClick={() => setCollapsed(!collapsed)}
-              className="w-full flex items-center justify-center py-2 text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent"
+              className="w-full flex items-center justify-center py-1.5 text-muted-foreground/40 hover:text-muted-foreground transition-colors rounded-md hover:bg-accent/50"
             >
               {collapsed ? (
-                <ChevronRight size={16} />
+                <ChevronRight size={14} />
               ) : (
-                <ChevronLeft size={16} />
+                <ChevronLeft size={14} />
               )}
             </button>
           </div>
@@ -189,7 +194,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top bar */}
-        <header className="h-16 flex items-center justify-between px-4 lg:px-6 border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-30">
+        <header className="h-14 flex items-center justify-between px-4 lg:px-6 border-b border-border bg-background/90 backdrop-blur-sm sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <button
               className="lg:hidden text-muted-foreground hover:text-foreground"
@@ -197,18 +202,21 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             >
               <Menu size={20} />
             </button>
-            <div className="hidden sm:flex items-center gap-2 text-muted-foreground">
-              <span className="font-mono-label text-[0.65rem]">
+            <div className="hidden sm:flex items-center gap-2">
+              <span className="font-mono-label text-[0.62rem] text-muted-foreground/60">
                 STRATEGIC NETWORK INTELLIGENCE
               </span>
-              <span className="text-border">|</span>
-              <span className="font-mono-label text-[0.6rem] text-primary/70">
+              <span className="text-border/60">·</span>
+              <span className="font-mono-label text-[0.58rem] text-primary/60">
                 35 CONTACTS
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <span className="font-mono-label text-[0.6rem]">CONFIDENTIAL</span>
+          <div className="flex items-center gap-2">
+            <span className="font-mono-label text-[0.58rem] text-muted-foreground/50 flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/50 animate-pulse" />
+              CONFIDENTIAL
+            </span>
           </div>
         </header>
 

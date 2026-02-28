@@ -11,6 +11,10 @@ import {
   InsertContactNote,
   auditLog,
   InsertAuditLogEntry,
+  contactUpdates,
+  InsertContactUpdate,
+  invitations,
+  InsertInvitation,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -366,4 +370,108 @@ export async function getAuditLog(options?: {
   const total = countResult[0]?.count ?? 0;
 
   return { entries, total };
+}
+
+// ─── Contact updates helpers ─────────────────────────────────
+
+export async function createContactUpdate(
+  update: InsertContactUpdate
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(contactUpdates).values(update);
+    return result[0].insertId;
+  } catch (error) {
+    console.warn("[ContactUpdates] Failed to create update:", error);
+    throw new Error("Contact updates feature not yet available");
+  }
+}
+
+export async function getContactUpdates(options?: {
+  status?: "pending" | "approved" | "rejected";
+  contactId?: number;
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) return { entries: [], total: 0 };
+
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+
+  try {
+    const conditions: ReturnType<typeof eq>[] = [];
+    if (options?.status) {
+      conditions.push(eq(contactUpdates.status, options.status));
+    }
+    if (options?.contactId !== undefined) {
+      conditions.push(eq(contactUpdates.contactId, options.contactId));
+    }
+
+    const whereClause =
+      conditions.length === 1 ? conditions[0] :
+      conditions.length > 1 ? and(...conditions) :
+      undefined;
+
+    const entries = whereClause
+      ? await db.select().from(contactUpdates).where(whereClause).orderBy(desc(contactUpdates.createdAt)).limit(limit).offset(offset)
+      : await db.select().from(contactUpdates).orderBy(desc(contactUpdates.createdAt)).limit(limit).offset(offset);
+
+    const countResult = whereClause
+      ? await db.select({ count: sql<number>`count(*)` }).from(contactUpdates).where(whereClause)
+      : await db.select({ count: sql<number>`count(*)` }).from(contactUpdates);
+
+    return { entries, total: countResult[0]?.count ?? 0 };
+  } catch (error) {
+    console.warn("[ContactUpdates] Failed to fetch updates:", error);
+    return { entries: [], total: 0 };
+  }
+}
+
+export async function updateContactUpdateStatus(
+  id: number,
+  status: "approved" | "rejected",
+  reviewedBy: string
+): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(contactUpdates)
+    .set({ status, reviewedBy, reviewedAt: new Date() })
+    .where(eq(contactUpdates.id, id));
+}
+
+// ─── Invitation helpers ──────────────────────────────────────
+
+export async function createInvitation(
+  invite: InsertInvitation
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  try {
+    const result = await db.insert(invitations).values({
+      ...invite,
+      email: invite.email.toLowerCase().trim(),
+    });
+    return result[0].insertId;
+  } catch (error) {
+    console.warn("[Invitations] Failed to create invitation:", error);
+    throw new Error("Invitation feature not yet available");
+  }
+}
+
+export async function getInvitations() {
+  const db = await getDb();
+  if (!db) return [];
+
+  try {
+    return db.select().from(invitations).orderBy(desc(invitations.createdAt));
+  } catch (error) {
+    console.warn("[Invitations] Failed to fetch invitations:", error);
+    return [];
+  }
 }
