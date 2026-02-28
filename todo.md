@@ -35,4 +35,24 @@
 ## Phase 6: Testing & Deploy
 - [x] Write vitest tests for access control system (14 tests passing)
 - [x] Verify admin panel UI (access requests + whitelist tabs)
-- [ ] Save checkpoint and deploy
+- [x] Save checkpoint and deploy
+
+## Feature: Relationship Notes / Meeting Logs
+- [x] Create contact_notes table (contactId, userId, userName, noteType, content, createdAt)
+- [x] Build tRPC procedures: notes.list, notes.create, notes.delete
+- [x] Build notes UI section on ProfileDetail page (chronological, timestamped, author shown)
+- [x] Support note types: meeting note, interaction, follow-up task, general
+- [x] Only whitelisted users can add notes
+
+## Feature: Audit Log
+- [x] Create audit_log table (userId, userName, action, contactId, contactName, metadata, createdAt)
+- [x] Log profile views automatically when user opens a contact profile
+- [x] Log note additions when a user creates a note
+- [x] Log note deletions when a user deletes a note
+- [x] Build admin-only tRPC procedures: auditLog.list with pagination and filters
+- [x] Add "Audit Log" tab in admin panel with chronological feed
+- [x] Audit log only visible to admin (powelljohn9521@gmail.com)
+
+## Deploy
+- [x] Write vitest tests for notes and audit log (14 new tests, 28 total passing)
+- [ ] Save final checkpoint and deploy

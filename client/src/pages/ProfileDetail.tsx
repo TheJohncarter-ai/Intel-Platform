@@ -3,9 +3,12 @@
 // Dark charcoal canvas, amber accents, editorial layout
 // ============================================================
 
+import { useEffect, useRef } from "react";
 import { useParams, Link } from "wouter";
 import Layout from "@/components/Layout";
+import ContactNotes from "@/components/ContactNotes";
 import { getContactById, getTierLabel, GROUP_LABELS } from "@/data/contacts";
+import { trpc } from "@/lib/trpc";
 import {
   ArrowLeft,
   Linkedin,
@@ -35,6 +38,20 @@ function getInitials(name: string): string {
 export default function ProfileDetail() {
   const params = useParams<{ id: string }>();
   const contact = getContactById(Number(params.id));
+  const loggedViewRef = useRef<number | null>(null);
+
+  // Log profile view to audit trail
+  const logViewMutation = trpc.audit.logView.useMutation();
+
+  useEffect(() => {
+    if (contact && loggedViewRef.current !== contact.id) {
+      loggedViewRef.current = contact.id;
+      logViewMutation.mutate({
+        contactId: contact.id,
+        contactName: contact.name,
+      });
+    }
+  }, [contact?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!contact) {
     return (
@@ -235,6 +252,9 @@ export default function ProfileDetail() {
                 )}
               </section>
             )}
+
+            {/* Relationship Notes — database-backed */}
+            <ContactNotes contactId={contact.id} contactName={contact.name} />
           </div>
 
           {/* Sidebar — right col */}

@@ -1,4 +1,4 @@
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser,
@@ -7,6 +7,10 @@ import {
   InsertWhitelistEntry,
   accessRequests,
   InsertAccessRequest,
+  contactNotes,
+  InsertContactNote,
+  auditLog,
+  InsertAuditLogEntry,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -110,7 +114,6 @@ export async function seedAdminWhitelist(): Promise<void> {
   if (!db) return;
 
   try {
-    // Check if admin already exists
     const existing = await db
       .select()
       .from(whitelist)
@@ -263,4 +266,104 @@ export async function hasExistingPendingRequest(
     .limit(1);
 
   return result.some((r) => r.status === "pending");
+}
+
+// ─── Contact notes helpers ──────────────────────────────────
+
+export async function createContactNote(
+  note: InsertContactNote
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(contactNotes).values(note);
+  return result[0].insertId;
+}
+
+export async function getContactNotes(contactId: number) {
+  const db = await getDb();
+  if (!db) return [];
+
+  return db
+    .select()
+    .from(contactNotes)
+    .where(eq(contactNotes.contactId, contactId))
+    .orderBy(desc(contactNotes.createdAt));
+}
+
+export async function getContactNoteById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db
+    .select()
+    .from(contactNotes)
+    .where(eq(contactNotes.id, id))
+    .limit(1);
+
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function deleteContactNote(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db.delete(contactNotes).where(eq(contactNotes.id, id));
+}
+
+// ─── Audit log helpers ──────────────────────────────────────
+
+export async function createAuditEntry(
+  entry: InsertAuditLogEntry
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+
+  try {
+    await db.insert(auditLog).values(entry);
+  } catch (error) {
+    console.warn("[AuditLog] Failed to create entry:", error);
+  }
+}
+
+export async function getAuditLog(options?: {
+  action?: "profile_view" | "note_added" | "note_deleted";
+  limit?: number;
+  offset?: number;
+}) {
+  const db = await getDb();
+  if (!db) return { entries: [], total: 0 };
+
+  const limit = options?.limit ?? 50;
+  const offset = options?.offset ?? 0;
+
+  const conditions = options?.action
+    ? eq(auditLog.action, options.action)
+    : undefined;
+
+  const entries = conditions
+    ? await db
+        .select()
+        .from(auditLog)
+        .where(conditions)
+        .orderBy(desc(auditLog.createdAt))
+        .limit(limit)
+        .offset(offset)
+    : await db
+        .select()
+        .from(auditLog)
+        .orderBy(desc(auditLog.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+  const countResult = conditions
+    ? await db
+        .select({ count: sql<number>`count(*)` })
+        .from(auditLog)
+        .where(conditions)
+    : await db.select({ count: sql<number>`count(*)` }).from(auditLog);
+
+  const total = countResult[0]?.count ?? 0;
+
+  return { entries, total };
 }

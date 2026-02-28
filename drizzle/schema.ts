@@ -50,3 +50,50 @@ export const accessRequests = mysqlTable("access_requests", {
 
 export type AccessRequest = typeof accessRequests.$inferSelect;
 export type InsertAccessRequest = typeof accessRequests.$inferInsert;
+
+/**
+ * Contact notes — relationship notes, meeting logs, follow-up tasks
+ * attached to specific contacts by whitelisted users.
+ */
+export const contactNotes = mysqlTable("contact_notes", {
+  id: int("id").autoincrement().primaryKey(),
+  /** The static contact ID from the contacts data (1-35) */
+  contactId: int("contactId").notNull(),
+  /** The name of the contact (denormalized for easy display) */
+  contactName: varchar("contactName", { length: 320 }).notNull(),
+  /** The user who created this note */
+  userId: int("userId").notNull(),
+  userName: varchar("userName", { length: 320 }).notNull(),
+  userEmail: varchar("userEmail", { length: 320 }).notNull(),
+  /** Type of note */
+  noteType: mysqlEnum("noteType", ["meeting", "interaction", "follow_up", "general"]).default("general").notNull(),
+  /** Note content */
+  content: text("content").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ContactNote = typeof contactNotes.$inferSelect;
+export type InsertContactNote = typeof contactNotes.$inferInsert;
+
+/**
+ * Audit log — tracks profile views and note additions across the site.
+ * Only visible to admin.
+ */
+export const auditLog = mysqlTable("audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  /** The user who performed the action */
+  userId: int("userId").notNull(),
+  userName: varchar("userName", { length: 320 }).notNull(),
+  userEmail: varchar("userEmail", { length: 320 }).notNull(),
+  /** Action type */
+  action: mysqlEnum("action", ["profile_view", "note_added", "note_deleted"]).notNull(),
+  /** The contact involved */
+  contactId: int("contactId").notNull(),
+  contactName: varchar("contactName", { length: 320 }).notNull(),
+  /** Optional metadata (e.g., note type, note preview) */
+  metadata: text("metadata"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type AuditLogEntry = typeof auditLog.$inferSelect;
+export type InsertAuditLogEntry = typeof auditLog.$inferInsert;

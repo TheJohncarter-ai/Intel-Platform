@@ -45,13 +45,11 @@ export const appRouter = router({
         })
       )
       .mutation(async ({ input, ctx }) => {
-        // Check if already whitelisted
         const alreadyWhitelisted = await db.isEmailWhitelisted(input.email);
         if (alreadyWhitelisted) {
           return { success: true, message: "You are already approved." };
         }
 
-        // Check for existing pending request
         const hasPending = await db.hasExistingPendingRequest(input.email);
         if (hasPending) {
           return {
@@ -66,7 +64,6 @@ export const appRouter = router({
           reason: input.reason ?? null,
         });
 
-        // Notify admin via built-in notification system
         try {
           await notifyOwner({
             title: "New Access Request — Strategic Network",
@@ -79,7 +76,6 @@ export const appRouter = router({
         return { success: true, message: "Your request has been submitted." };
       }),
 
-    /** Check if current user has a pending request */
     myStatus: protectedProcedure.query(async ({ ctx }) => {
       const email = ctx.user.email;
       if (!email) return { hasPending: false };
@@ -88,9 +84,114 @@ export const appRouter = router({
     }),
   }),
 
+  /** Contact notes — relationship notes, meeting logs, follow-up tasks */
+  notes: router({
+    /** List all notes for a specific contact */
+    list: protectedProcedure
+      .input(z.object({ contactId: z.number() }))
+      .query(async ({ input }) => {
+        return db.getContactNotes(input.contactId);
+      }),
+
+    /** Create a new note on a contact */
+    create: protectedProcedure
+      .input(
+        z.object({
+          contactId: z.number(),
+          contactName: z.string(),
+          noteType: z.enum(["meeting", "interaction", "follow_up", "general"]),
+          content: z.string().min(1, "Note content is required"),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        const noteId = await db.createContactNote({
+          contactId: input.contactId,
+          contactName: input.contactName,
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "Unknown",
+          userEmail: ctx.user.email ?? "unknown",
+          noteType: input.noteType,
+          content: input.content,
+        });
+
+        // Log to audit trail
+        await db.createAuditEntry({
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "Unknown",
+          userEmail: ctx.user.email ?? "unknown",
+          action: "note_added",
+          contactId: input.contactId,
+          contactName: input.contactName,
+          metadata: JSON.stringify({
+            noteType: input.noteType,
+            preview: input.content.substring(0, 100),
+            noteId,
+          }),
+        });
+
+        return { success: true, id: noteId };
+      }),
+
+    /** Delete a note (only the author or admin can delete) */
+    delete: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const note = await db.getContactNoteById(input.id);
+        if (!note) {
+          throw new Error("Note not found");
+        }
+
+        // Only the author or admin can delete
+        const isAdmin = db.isAdminEmail(ctx.user.email);
+        if (note.userId !== ctx.user.id && !isAdmin) {
+          throw new Error("You can only delete your own notes");
+        }
+
+        await db.deleteContactNote(input.id);
+
+        // Log to audit trail
+        await db.createAuditEntry({
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "Unknown",
+          userEmail: ctx.user.email ?? "unknown",
+          action: "note_deleted",
+          contactId: note.contactId,
+          contactName: note.contactName,
+          metadata: JSON.stringify({
+            noteType: note.noteType,
+            deletedNoteId: input.id,
+          }),
+        });
+
+        return { success: true };
+      }),
+  }),
+
+  /** Audit log — track profile views */
+  audit: router({
+    /** Log a profile view (called by the frontend when a profile is opened) */
+    logView: protectedProcedure
+      .input(
+        z.object({
+          contactId: z.number(),
+          contactName: z.string(),
+        })
+      )
+      .mutation(async ({ input, ctx }) => {
+        await db.createAuditEntry({
+          userId: ctx.user.id,
+          userName: ctx.user.name ?? "Unknown",
+          userEmail: ctx.user.email ?? "unknown",
+          action: "profile_view",
+          contactId: input.contactId,
+          contactName: input.contactName,
+        });
+        return { success: true };
+      }),
+  }),
+
   /** Admin-only endpoints */
   admin: router({
-    /** List all access requests (optionally filter by status) */
     listRequests: adminProcedure
       .input(
         z
@@ -103,7 +204,6 @@ export const appRouter = router({
         return db.getAccessRequests(input?.status);
       }),
 
-    /** Approve an access request — adds email to whitelist */
     approveRequest: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
@@ -116,14 +216,12 @@ export const appRouter = router({
           throw new Error(`Request already ${request.status}`);
         }
 
-        // Add to whitelist
         await db.addToWhitelist({
           email: request.email,
           name: request.name,
           approvedBy: ctx.user.email ?? "admin",
         });
 
-        // Update request status
         await db.updateAccessRequestStatus(
           input.id,
           "approved",
@@ -133,7 +231,6 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    /** Deny an access request */
     denyRequest: adminProcedure
       .input(z.object({ id: z.number() }))
       .mutation(async ({ input, ctx }) => {
@@ -155,12 +252,10 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    /** List all whitelisted emails */
     listWhitelist: adminProcedure.query(async () => {
       return db.getAllWhitelistEntries();
     }),
 
-    /** Manually add an email to the whitelist */
     addWhitelist: adminProcedure
       .input(
         z.object({
@@ -177,16 +272,35 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    /** Remove an email from the whitelist */
     removeWhitelist: adminProcedure
       .input(z.object({ email: z.string().email() }))
       .mutation(async ({ input }) => {
-        // Don't allow removing the admin
         if (db.isAdminEmail(input.email)) {
           throw new Error("Cannot remove the primary admin from the whitelist");
         }
         await db.removeFromWhitelist(input.email);
         return { success: true };
+      }),
+
+    /** Audit log — admin only */
+    auditLog: adminProcedure
+      .input(
+        z
+          .object({
+            action: z
+              .enum(["profile_view", "note_added", "note_deleted"])
+              .optional(),
+            limit: z.number().min(1).max(200).optional(),
+            offset: z.number().min(0).optional(),
+          })
+          .optional()
+      )
+      .query(async ({ input }) => {
+        return db.getAuditLog({
+          action: input?.action,
+          limit: input?.limit ?? 50,
+          offset: input?.offset ?? 0,
+        });
       }),
   }),
 });
