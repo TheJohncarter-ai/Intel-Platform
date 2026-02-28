@@ -100,14 +100,14 @@
 - [x] Push to GitHub + checkpoint
 
 ## Phase 8 — Connections View + Shared Activity Footer
-- [ ] Backend: endpoint to compute all contact-to-contact relationships (shared org, event, sector)
-- [ ] Backend: endpoint for per-contact shared activity (colleagues, co-attendees, sector peers)
-- [ ] Frontend: Connections network graph page with force-directed layout (d3-force)
-- [ ] Frontend: Interactive nodes (click to profile), edges labeled by relationship type
-- [ ] Frontend: Filter/highlight by relationship type (org, event, sector)
-- [ ] Frontend: Add "Connections" view toggle to Home header
-- [ ] Frontend: Shared Activity footer on Profile page — same company, same event, same sector
-- [ ] Frontend: Clickable connections linking to other profiles
-- [ ] Route setup for /connections page
-- [ ] Tests for connections endpoint
-- [ ] Push to GitHub + checkpoint
+- [x] Backend: endpoint to compute all contact-to-contact relationships (shared org, event, sector, domain)
+- [x] Backend: endpoint for per-contact shared activity (colleagues, co-attendees, sector peers, shared domain)
+- [x] Frontend: Connections network graph page with force-directed layout (d3-force)
+- [x] Frontend: Interactive nodes (click to profile), edges labeled by relationship type
+- [x] Frontend: Filter/highlight by relationship type (org, event, sector, domain)
+- [x] Frontend: Add "Graph" button to Home header
+- [x] Frontend: Shared Activity footer on Profile page — same company, same event, same sector, same domain
+- [x] Frontend: Clickable connections linking to other profiles
+- [x] Route setup for /connections page
+- [x] Tests for connections endpoint (46 total passing)
+- [x] Push to GitHub + checkpoint
