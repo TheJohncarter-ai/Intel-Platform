@@ -28,8 +28,8 @@
 - [x] Phase 1 checkpoint
 
 ## Phase 2 — Review & Refactor
-- [ ] Full UX review — identify improvements
-- [ ] Data feed analysis — LinkedIn, RSS, webhooks, APIs for living intelligence
-- [ ] Codebase refactor — remove redundancy, optimize performance, improve structure
-- [ ] Write detailed review document
-- [ ] Phase 2 checkpoint
+- [x] Full UX review — identify improvements
+- [x] Data feed analysis — LinkedIn, RSS, webhooks, APIs for living intelligence
+- [x] Codebase refactor — remove redundancy, optimize performance, improve structure
+- [x] Write detailed review document
+- [x] Phase 2 checkpoint

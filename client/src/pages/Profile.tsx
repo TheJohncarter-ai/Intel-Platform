@@ -1,12 +1,13 @@
 import { trpc } from "@/lib/trpc";
-import { useAuth } from "@/_core/hooks/useAuth";
 import { useParams, Link } from "wouter";
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import {
   ArrowLeft, Mail, Phone, MapPin, Building, Briefcase, Users, Tag,
   Plus, Trash2, MessageSquare, PhoneCall, MailIcon, Clock, FileText,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PageShell, LoadingScreen, PanelCard, SectionHeader, StatusBadge, EmptyState } from "@/components/ui-primitives";
 
 const NOTE_TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   meeting:   { label: "Meeting",   icon: <MessageSquare size={12} />, color: "#d4a843" },
@@ -19,34 +20,29 @@ const NOTE_TYPE_META: Record<string, { label: string; icon: React.ReactNode; col
 export default function Profile() {
   const params = useParams<{ id: string }>();
   const contactId = Number(params.id);
-  const { user } = useAuth();
 
   const { data: contact, isLoading, error } = trpc.contacts.getById.useQuery(
     { id: contactId },
     { enabled: !isNaN(contactId) }
   );
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-[#0a0c18] flex items-center justify-center">
-        <div className="text-[#4a6080] font-mono text-sm tracking-widest uppercase animate-pulse">Loading profile...</div>
-      </div>
-    );
-  }
+  if (isLoading) return <LoadingScreen text="Loading profile..." />;
 
   if (error || !contact) {
     return (
-      <div className="min-h-screen bg-[#0a0c18] flex flex-col items-center justify-center gap-4">
-        <div className="text-[#f87171] font-mono text-sm tracking-widest uppercase">Contact not found</div>
-        <Link href="/" className="text-[#d4a843] font-mono text-xs tracking-wider hover:text-[#f0c060] transition-colors flex items-center gap-2">
-          <ArrowLeft size={14} /> Return to Globe
-        </Link>
-      </div>
+      <PageShell>
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+          <div className="text-[#f87171] font-mono text-sm tracking-widest uppercase">Contact not found</div>
+          <Link href="/" className="text-[#d4a843] font-mono text-xs tracking-wider hover:text-[#f0c060] transition-colors flex items-center gap-2">
+            <ArrowLeft size={14} /> Return to Globe
+          </Link>
+        </div>
+      </PageShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0c18] text-[#c8d8f0]">
+    <PageShell>
       {/* Header */}
       <div className="border-b border-[#151f38] bg-[#060914]/90 backdrop-blur-md">
         <div className="max-w-4xl mx-auto px-6 py-4 flex items-center gap-4">
@@ -71,13 +67,9 @@ export default function Profile() {
             <div className="flex items-center gap-3">
               {contact.role && <span className="text-[#4a6080] font-mono text-xs tracking-wider">{contact.role}</span>}
               {contact.tier && (
-                <span className={`font-mono text-[9px] font-extrabold tracking-[0.1em] uppercase px-2 py-0.5 rounded-sm border ${
-                  contact.tier === 'Tier 1' ? 'bg-[#0d1f0d] border-[#1a4a1a] text-[#4ade80]' :
-                  contact.tier === 'Tier 2' ? 'bg-[#0d1828] border-[#1a3a5a] text-[#60a5fa]' :
-                  'bg-[#1f0d0d] border-[#4a1a1a] text-[#f87171]'
-                }`}>
+                <StatusBadge variant={contact.tier === 'Tier 1' ? 'success' : contact.tier === 'Tier 2' ? 'info' : 'danger'}>
                   {contact.tier}
-                </span>
+                </StatusBadge>
               )}
             </div>
           </div>
@@ -95,19 +87,19 @@ export default function Profile() {
 
         {/* Static Notes */}
         {contact.notes && (
-          <div className="mt-6 p-4 rounded-lg bg-[#060914] border border-[#151f38]">
+          <PanelCard className="mt-6">
             <div className="flex items-center gap-2 mb-3">
               <Tag size={14} className="text-[#d4a843]" />
               <span className="text-[#d4a843] font-mono text-[9px] font-extrabold tracking-[0.18em] uppercase">Notes</span>
             </div>
             <p className="text-[#4a6080] font-mono text-sm leading-relaxed">{contact.notes}</p>
-          </div>
+          </PanelCard>
         )}
 
         {/* Meeting Notes / Relationship Logs */}
         <MeetingNotesSection contactId={contactId} />
       </div>
-    </div>
+    </PageShell>
   );
 }
 
@@ -121,6 +113,7 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
   const [showForm, setShowForm] = useState(false);
   const [noteType, setNoteType] = useState<"meeting" | "call" | "email" | "follow_up" | "general">("meeting");
   const [content, setContent] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const addMutation = trpc.notes.add.useMutation({
     onSuccess: () => {
@@ -135,6 +128,7 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
   const deleteMutation = trpc.notes.delete.useMutation({
     onSuccess: () => {
       utils.notes.listByContact.invalidate({ contactId });
+      setDeleteConfirmId(null);
       toast.success("Note deleted");
     },
   });
@@ -142,13 +136,7 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
   return (
     <div className="mt-8">
       <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-0.5 h-4 bg-[#d4a843] rounded-sm" />
-          <span className="text-[#d4a843] font-mono text-[10px] font-extrabold tracking-[0.18em] uppercase">
-            Relationship Log
-          </span>
-          <span className="text-[#4a6080] font-mono text-[10px]">[{notes?.length ?? 0}]</span>
-        </div>
+        <SectionHeader title="Relationship Log" count={notes?.length ?? 0} />
         <button
           onClick={() => setShowForm(!showForm)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded font-mono text-[10px] font-bold tracking-wider uppercase transition-all"
@@ -164,7 +152,7 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
 
       {/* Add Note Form */}
       {showForm && (
-        <div className="mb-4 p-4 rounded-lg bg-[#060914] border border-[#151f38]">
+        <PanelCard className="mb-4">
           <div className="flex gap-2 mb-3 flex-wrap">
             {(Object.keys(NOTE_TYPE_META) as Array<keyof typeof NOTE_TYPE_META>).map((type) => {
               const meta = NOTE_TYPE_META[type];
@@ -201,7 +189,7 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
           >
             {addMutation.isPending ? "Saving..." : "Save Note"}
           </button>
-        </div>
+        </PanelCard>
       )}
 
       {/* Notes List */}
@@ -210,15 +198,13 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
           <span className="text-[#4a6080] font-mono text-sm animate-pulse">Loading notes...</span>
         </div>
       ) : !notes?.length ? (
-        <div className="text-center py-8 rounded-lg bg-[#060914] border border-[#151f38]">
-          <span className="text-[#2a3a54] font-mono text-sm">No relationship logs yet</span>
-        </div>
+        <EmptyState text="No relationship logs yet" />
       ) : (
         <div className="space-y-2">
           {notes.map((note) => {
             const meta = NOTE_TYPE_META[note.noteType] ?? NOTE_TYPE_META.general;
             return (
-              <div key={note.id} className="p-4 rounded-lg bg-[#060914] border border-[#151f38] group">
+              <PanelCard key={note.id} className="group">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <span className="flex items-center gap-1.5 px-2 py-0.5 rounded font-mono text-[9px] font-bold tracking-wider uppercase"
@@ -233,17 +219,35 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
                     <span className="text-[#2a3a54] font-mono text-[10px]">
                       {new Date(note.createdAt).toLocaleString()}
                     </span>
-                    <button
-                      onClick={() => deleteMutation.mutate({ id: note.id })}
-                      className="opacity-0 group-hover:opacity-100 text-[#f87171] hover:text-[#fca5a5] transition-all"
-                      title="Delete note"
-                    >
-                      <Trash2 size={12} />
-                    </button>
+                    {deleteConfirmId === note.id ? (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => deleteMutation.mutate({ id: note.id })}
+                          className="text-[#f87171] font-mono text-[9px] font-bold px-2 py-0.5 rounded"
+                          style={{ background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.3)" }}
+                        >
+                          Confirm
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirmId(null)}
+                          className="text-[#4a6080] font-mono text-[9px] px-2 py-0.5"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteConfirmId(note.id)}
+                        className="opacity-0 group-hover:opacity-100 text-[#f87171] hover:text-[#fca5a5] transition-all"
+                        title="Delete note"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
                   </div>
                 </div>
                 <p className="text-[#c8d8f0] font-mono text-sm leading-relaxed whitespace-pre-wrap">{note.content}</p>
-              </div>
+              </PanelCard>
             );
           })}
         </div>
@@ -256,13 +260,13 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
 
 function InfoCard({ icon, label, value, href }: { icon: React.ReactNode; label: string; value: string; href?: string }) {
   const inner = (
-    <div className="p-4 rounded-lg bg-[#060914] border border-[#151f38] hover:border-[#1a3a6a] transition-colors">
+    <PanelCard className="hover:border-[#1a3a6a] transition-colors">
       <div className="flex items-center gap-2 mb-2">
         <span className="text-[#d4a843]">{icon}</span>
         <span className="text-[#4a6080] font-mono text-[9px] font-extrabold tracking-[0.18em] uppercase">{label}</span>
       </div>
       <div className="text-[#c8d8f0] font-mono text-sm">{value}</div>
-    </div>
+    </PanelCard>
   );
   if (href) return <a href={href} className="block no-underline">{inner}</a>;
   return inner;
