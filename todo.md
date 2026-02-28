@@ -55,4 +55,4 @@
 
 ## Deploy
 - [x] Write vitest tests for notes and audit log (14 new tests, 28 total passing)
-- [ ] Save final checkpoint and deploy
+- [x] Save final checkpoint and deploy
