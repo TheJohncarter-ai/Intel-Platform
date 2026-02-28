@@ -117,3 +117,23 @@ export const auditLog = mysqlTable("audit_log", {
 });
 
 export type AuditLogEntry = typeof auditLog.$inferSelect;
+
+// ═══════════════════════════════════════════════════════════════════════
+// EXTENDED NETWORK CACHE — caches LLM-researched professional associates
+// ═══════════════════════════════════════════════════════════════════════
+
+export const extendedNetwork = mysqlTable("extended_network", {
+  id: int("id").autoincrement().primaryKey(),
+  contactId: int("contactId").notNull(),
+  associateName: varchar("associateName", { length: 255 }).notNull(),
+  associateRole: varchar("associateRole", { length: 255 }),
+  associateOrg: varchar("associateOrg", { length: 255 }),
+  connectionReason: text("connectionReason"),
+  connectionType: varchar("connectionType", { length: 100 }),
+  linkedinUrl: varchar("linkedinUrl", { length: 500 }),
+  confidence: mysqlEnum("confidence", ["high", "medium", "low"]).default("medium"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ExtendedNetworkEntry = typeof extendedNetwork.$inferSelect;
+export type InsertExtendedNetwork = typeof extendedNetwork.$inferInsert;

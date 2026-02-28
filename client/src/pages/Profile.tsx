@@ -4,6 +4,7 @@ import {
   ArrowLeft, Mail, Phone, MapPin, Building, Briefcase, Users, Tag,
   Plus, Trash2, MessageSquare, PhoneCall, MailIcon, Clock, FileText,
   Edit3, X, Save, Sparkles, ExternalLink, Linkedin, Info, Zap, Award, Globe,
+  Network, Shield, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
@@ -465,6 +466,9 @@ export default function Profile() {
         {/* Meeting Notes / Relationship Logs */}
         <MeetingNotesSection contactId={contactId} />
 
+        {/* Extended Network — LLM-researched professional associates */}
+        <ExtendedNetworkSection contactId={contactId} />
+
         {/* Shared Activity / Business Connections */}
         <SharedActivitySection contactId={contactId} />
       </div>
@@ -631,6 +635,208 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
       ) : (
         <div className="text-[#4a6080] text-xs text-center py-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           No notes yet. Add one to start tracking interactions.
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// EXTENDED NETWORK — LLM-researched professional associates
+// ═══════════════════════════════════════════════════════════════════════
+
+const CONNECTION_TYPE_META: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
+  board:              { label: "Board",            color: "#f59e0b", icon: <Shield size={12} /> },
+  "co-investor":      { label: "Co-Investor",      color: "#4ade80", icon: <Zap size={12} /> },
+  colleague:          { label: "Colleague",        color: "#60a5fa", icon: <Users size={12} /> },
+  industry_peer:      { label: "Industry Peer",    color: "#a78bfa", icon: <Briefcase size={12} /> },
+  "event_co-attendee": { label: "Event Co-Attendee", color: "#06b6d4", icon: <Tag size={12} /> },
+  advisor:            { label: "Advisor",          color: "#f472b6", icon: <Award size={12} /> },
+  legal_counsel:      { label: "Legal Counsel",    color: "#fb923c", icon: <Shield size={12} /> },
+  fund_partner:       { label: "Fund Partner",     color: "#34d399", icon: <Network size={12} /> },
+};
+
+function ExtendedNetworkSection({ contactId }: { contactId: number }) {
+  const utils = trpc.useUtils();
+  const { data: associates, isLoading } = trpc.contacts.extendedNetwork.useQuery(
+    { id: contactId },
+    { enabled: contactId > 0 }
+  );
+
+  const researchMutation = trpc.contacts.researchNetwork.useMutation({
+    onSuccess: () => {
+      utils.contacts.extendedNetwork.invalidate({ id: contactId });
+      toast.success("Extended network research complete");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  const [expanded, setExpanded] = useState(false);
+  const hasData = associates && associates.length > 0;
+  const maxShow = 6;
+  const visible = hasData ? (expanded ? associates : associates.slice(0, maxShow)) : [];
+
+  return (
+    <div className="mt-6 sm:mt-8">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="w-[3px] h-4 rounded-sm bg-[#a78bfa]" style={{ boxShadow: "0 0 10px rgba(167,139,250,0.5)" }} />
+          <span className="text-[#a78bfa] text-[9px] sm:text-[10px] font-extrabold tracking-[0.18em] sm:tracking-[0.22em] uppercase"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            Extended Network
+          </span>
+          {hasData && (
+            <span className="text-[#4a6080] text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              [{associates.length}]
+            </span>
+          )}
+        </div>
+        <button
+          onClick={() => researchMutation.mutate({ id: contactId })}
+          disabled={researchMutation.isPending}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[9px] sm:text-[10px] font-bold tracking-wider uppercase transition-all hover:bg-[rgba(167,139,250,0.15)]"
+          style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            background: "rgba(167,139,250,0.08)",
+            border: "1px solid rgba(167,139,250,0.25)",
+            color: "#a78bfa",
+          }}
+        >
+          {researchMutation.isPending ? (
+            <><RefreshCw size={12} className="animate-spin" /> Researching...</>
+          ) : hasData ? (
+            <><RefreshCw size={12} /> Refresh</>
+          ) : (
+            <><Network size={12} /> Map Network</>
+          )}
+        </button>
+      </div>
+
+      {isLoading && (
+        <div className="text-[#4a6080] text-xs text-center py-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          Loading extended network...
+        </div>
+      )}
+
+      {researchMutation.isPending && !hasData && (
+        <div className="p-4 rounded-lg bg-[#060914] border border-[#a78bfa30] text-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-10 h-10 rounded-full border-2 border-[#a78bfa30] border-t-[#a78bfa] animate-spin" />
+            <span className="text-[#a78bfa] text-[10px] tracking-[0.2em] uppercase"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              Analyzing professional network...
+            </span>
+            <span className="text-[#4a6080] text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              Researching VC, IB, Finance & Law connections
+            </span>
+          </div>
+        </div>
+      )}
+
+      {!isLoading && !researchMutation.isPending && !hasData && (
+        <div className="p-4 rounded-lg bg-[#060914] border border-[#151f38] text-center">
+          <Network size={24} className="text-[#4a6080] mx-auto mb-2 opacity-50" />
+          <p className="text-[#4a6080] text-xs" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            Click "Map Network" to discover professional associates
+          </p>
+          <p className="text-[#4a6080] text-[9px] mt-1 opacity-70" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            AI-powered analysis of VC, Investment Banking, Finance & Law connections
+          </p>
+        </div>
+      )}
+
+      {hasData && (
+        <div className="space-y-2">
+          {visible.map((assoc, idx) => {
+            const meta = CONNECTION_TYPE_META[assoc.connectionType ?? ""] || { label: assoc.connectionType || "Associate", color: "#4a6080", icon: <Users size={12} /> };
+            const confColor = CONFIDENCE_COLORS[assoc.confidence ?? "medium"] || CONFIDENCE_COLORS.medium;
+            return (
+              <div key={idx} className="p-3 sm:p-4 rounded-lg bg-[#060914] border border-[#151f38] hover:border-[#1a3a6a] transition-all group">
+                <div className="flex items-start gap-3">
+                  {/* Avatar */}
+                  <div className="w-9 h-9 rounded-md bg-[#151f38] border border-[#1a3a6a] flex items-center justify-center text-[#a78bfa] text-[11px] font-bold shrink-0"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {assoc.associateName.charAt(0).toUpperCase()}
+                  </div>
+                  {/* Details */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-[#c8d8f0] text-xs sm:text-sm font-semibold">
+                        {assoc.associateName}
+                      </span>
+                      {/* Connection type badge */}
+                      <span className="text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded flex items-center gap-1"
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          background: `${meta.color}20`,
+                          border: `1px solid ${meta.color}40`,
+                          color: meta.color,
+                        }}>
+                        {meta.icon}
+                        {meta.label}
+                      </span>
+                      {/* Confidence badge */}
+                      <span className="text-[7px] sm:text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded"
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          background: confColor.bg,
+                          border: `1px solid ${confColor.border}`,
+                          color: confColor.text,
+                        }}>
+                        {assoc.confidence}
+                      </span>
+                    </div>
+                    {/* Role & Org */}
+                    {(assoc.associateRole || assoc.associateOrg) && (
+                      <div className="text-[#4a6080] text-[10px] sm:text-[11px] mb-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {assoc.associateRole}{assoc.associateRole && assoc.associateOrg ? " · " : ""}{assoc.associateOrg}
+                      </div>
+                    )}
+                    {/* Connection reason */}
+                    {assoc.connectionReason && (
+                      <div className="text-[#4a6080] text-[9px] sm:text-[10px] leading-relaxed opacity-80" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {assoc.connectionReason}
+                      </div>
+                    )}
+                  </div>
+                  {/* LinkedIn link */}
+                  {assoc.linkedinUrl && (
+                    <a
+                      href={assoc.linkedinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#3b82f6] hover:text-[#60a5fa] transition-colors p-1 shrink-0"
+                      title="View on LinkedIn"
+                    >
+                      <Linkedin size={14} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+
+          {associates.length > maxShow && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-1.5 w-full justify-center py-2 text-[10px] font-bold tracking-wider uppercase transition-colors hover:text-[#c8d8f0]"
+              style={{ fontFamily: "'JetBrains Mono', monospace", color: "#4a6080" }}
+            >
+              {expanded ? (
+                <><ChevronUp size={12} /> Show Less</>
+              ) : (
+                <><ChevronDown size={12} /> Show {associates.length - maxShow} More</>
+              )}
+            </button>
+          )}
+
+          {/* Timestamp */}
+          {associates[0]?.createdAt && (
+            <div className="text-[#4a6080] text-[8px] text-right pt-1" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              Last researched: {new Date(associates[0].createdAt).toLocaleDateString()} {new Date(associates[0].createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </div>
+          )}
         </div>
       )}
     </div>

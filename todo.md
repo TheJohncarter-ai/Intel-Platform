@@ -111,3 +111,15 @@
 - [x] Route setup for /connections page
 - [x] Tests for connections endpoint (46 total passing)
 - [x] Push to GitHub + checkpoint
+
+## Phase 9 — Cleanup + Extended Network
+- [x] Audit all contacts: identified 14 test entries (7 'Test Import Person' + 7 'Another Person')
+- [x] Remove test contacts from database (72 real contacts remain)
+- [x] Identify and merge duplicate contact entries (no real duplicates found)
+- [ ] Add deduplication logic to prevent future duplicates on import
+- [x] Backend: Extended Network endpoint using LLM to research associates
+- [x] Backend: Cache extended network results to avoid repeated LLM calls (extended_network table)
+- [x] Frontend: Extended Network / Professional Associates section on Profile page
+- [x] Each associate shows: name, role, organization, connection type, confidence, LinkedIn link
+- [x] Tests for new endpoints (52 total passing across 8 test files)
+- [ ] Push to GitHub + checkpoint

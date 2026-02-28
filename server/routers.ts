@@ -13,6 +13,7 @@ import {
   updateAccessRequestStatus, hasExistingPendingRequest,
   getNotesByContactId, addMeetingNote, deleteMeetingNote, getMeetingNoteById,
   logAudit, getAuditLog, getAdminStats,
+  getExtendedNetwork, saveExtendedNetwork, hasExtendedNetwork,
 } from "./db";
 
 const ADMIN_EMAIL = "Powelljohn9521@gmail.com";
@@ -165,6 +166,101 @@ Keep it factual, concise, and actionable. Format with clear sections using markd
 
         const answer = String(response.choices?.[0]?.message?.content || "I couldn't process that question. Please try rephrasing.");
         return { answer };
+      }),
+
+    extendedNetwork: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .query(async ({ input }) => {
+        return getExtendedNetwork(input.id);
+      }),
+
+    researchNetwork: protectedProcedure
+      .input(z.object({ id: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        const contact = await getContactById(input.id);
+        if (!contact) throw new Error("Contact not found");
+
+        // Get all contacts for cross-referencing
+        const allContacts = await getAllContacts();
+        const sameOrg = allContacts.filter(c => c.id !== contact.id && c.organization && contact.organization && c.organization.toLowerCase() === contact.organization.toLowerCase());
+        const sameSector = allContacts.filter(c => c.id !== contact.id && c.sector && contact.sector && c.sector.split(",").some(s => contact.sector!.toLowerCase().includes(s.trim().toLowerCase())));
+        const sameEvent = allContacts.filter(c => c.id !== contact.id && c.event && contact.event && c.event === contact.event);
+
+        const existingNetworkContext = [
+          sameOrg.length > 0 ? `Same organization (${contact.organization}): ${sameOrg.map(c => `${c.name} - ${c.role}`).join(", ")}` : "",
+          sameSector.length > 0 ? `Same sector: ${sameSector.slice(0, 10).map(c => `${c.name} (${c.organization}) - ${c.sector}`).join(", ")}` : "",
+          sameEvent.length > 0 ? `Same event (${contact.event}): ${sameEvent.slice(0, 10).map(c => `${c.name} (${c.organization})`).join(", ")}` : "",
+        ].filter(Boolean).join("\n");
+
+        const prompt = `You are a strategic network intelligence analyst specializing in VC, Investment Banking, Finance, and Law in Latin America and globally.
+
+Research the professional network of this person:
+Name: ${contact.name}
+Role: ${contact.role || "Unknown"}
+Organization: ${contact.organization || "Unknown"}
+Location: ${contact.location || "Unknown"}
+Sector: ${contact.sector || "Unknown"}
+LinkedIn: ${contact.linkedinUrl || "Not available"}
+Company: ${contact.companyDomain || "Unknown"}
+Company Description: ${contact.companyDescription || "Unknown"}
+Event: ${contact.event || "None"}
+Bio: ${contact.notes || "None"}
+
+Existing network connections in our database:
+${existingNetworkContext || "None found"}
+
+Based on this person's role, organization, sector, and event attendance, identify 5-8 likely high-value professional associates they would be connected to in the worlds of:
+- Venture Capital & Private Equity
+- Investment Banking
+- Finance & Family Offices
+- Corporate Law
+
+For each associate, provide:
+1. Full name
+2. Current role/title
+3. Organization
+4. How they're likely connected (shared board, co-investor, same fund, event co-panelist, industry peer, etc.)
+5. Connection type: one of "board", "co-investor", "colleague", "industry_peer", "event_co-attendee", "advisor", "legal_counsel", "fund_partner"
+6. Confidence: "high" if based on known public data, "medium" if reasonable inference, "low" if speculative
+7. LinkedIn URL if known (or "unknown")
+
+Respond ONLY with a JSON array of objects with these exact keys: name, role, organization, connectionReason, connectionType, confidence, linkedinUrl
+Do NOT include any text outside the JSON array.`;
+
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: "You are a strategic network intelligence analyst. Respond only with valid JSON arrays. No markdown, no explanation." },
+            { role: "user", content: prompt },
+          ],
+        });
+
+        const raw = String(response.choices?.[0]?.message?.content || "[]");
+        // Extract JSON array from response
+        let associates: any[] = [];
+        try {
+          const jsonMatch = raw.match(/\[[\s\S]*\]/);
+          if (jsonMatch) associates = JSON.parse(jsonMatch[0]);
+        } catch (e) {
+          console.error("Failed to parse extended network response:", e);
+          associates = [];
+        }
+
+        // Save to cache
+        const entries = associates.map((a: any) => ({
+          contactId: input.id,
+          associateName: String(a.name || "Unknown"),
+          associateRole: String(a.role || ""),
+          associateOrg: String(a.organization || ""),
+          connectionReason: String(a.connectionReason || ""),
+          connectionType: String(a.connectionType || "industry_peer"),
+          linkedinUrl: a.linkedinUrl && a.linkedinUrl !== "unknown" ? String(a.linkedinUrl) : null,
+          confidence: ["high", "medium", "low"].includes(a.confidence) ? a.confidence : "medium",
+        }));
+
+        await saveExtendedNetwork(input.id, entries as any);
+        await logAudit("contact_researched", ctx.user.email!, ctx.user.name ?? null, "contact", input.id, `Extended network research: ${entries.length} associates`);
+
+        return entries;
       }),
 
     exportCsv: protectedProcedure.query(async () => {

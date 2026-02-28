@@ -2,9 +2,9 @@ import { eq, desc, and, sql, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import {
   InsertUser, users, contacts, emailWhitelist, accessRequests,
-  meetingNotes, auditLog,
+  meetingNotes, auditLog, extendedNetwork,
   type Contact, type EmailWhitelist, type AccessRequest,
-  type MeetingNote, type AuditLogEntry,
+  type MeetingNote, type AuditLogEntry, type InsertExtendedNetwork,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -337,4 +337,32 @@ export async function getAdminStats(): Promise<{
     totalNotes: Number(noteCount?.count ?? 0),
     recentActivity: Number(activityCount?.count ?? 0),
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// EXTENDED NETWORK — cached LLM-researched professional associates
+// ═══════════════════════════════════════════════════════════════════════
+
+export async function getExtendedNetwork(contactId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(extendedNetwork).where(eq(extendedNetwork.contactId, contactId)).orderBy(desc(extendedNetwork.createdAt));
+}
+
+export async function saveExtendedNetwork(contactId: number, associates: InsertExtendedNetwork[]) {
+  const db = await getDb();
+  if (!db) return;
+  // Clear old entries for this contact
+  await db.delete(extendedNetwork).where(eq(extendedNetwork.contactId, contactId));
+  // Insert new entries
+  if (associates.length > 0) {
+    await db.insert(extendedNetwork).values(associates);
+  }
+}
+
+export async function hasExtendedNetwork(contactId: number): Promise<boolean> {
+  const db = await getDb();
+  if (!db) return false;
+  const rows = await db.select({ id: extendedNetwork.id }).from(extendedNetwork).where(eq(extendedNetwork.contactId, contactId)).limit(1);
+  return rows.length > 0;
 }
