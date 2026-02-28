@@ -464,6 +464,9 @@ export default function Profile() {
 
         {/* Meeting Notes / Relationship Logs */}
         <MeetingNotesSection contactId={contactId} />
+
+        {/* Shared Activity / Business Connections */}
+        <SharedActivitySection contactId={contactId} />
       </div>
     </div>
   );
@@ -630,6 +633,146 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
           No notes yet. Add one to start tracking interactions.
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// SHARED ACTIVITY / BUSINESS CONNECTIONS SECTION
+// ═══════════════════════════════════════════════════════════════════════
+
+type SharedPerson = { id: number; name: string; role: string | null; organization: string | null; sharedValue: string };
+
+function ConnectionCard({ person }: { person: SharedPerson }) {
+  return (
+    <Link
+      href={`/profile/${person.id}`}
+      className="flex items-center gap-3 p-3 rounded-lg bg-[#060914] border border-[#151f38] hover:border-[#1a3a6a] transition-all group cursor-pointer"
+    >
+      <div className="w-8 h-8 rounded-md bg-[#151f38] border border-[#1a3a6a] flex items-center justify-center text-[#d4a843] text-[10px] font-bold shrink-0"
+        style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+        {person.name.charAt(0).toUpperCase()}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[#c8d8f0] text-xs font-semibold truncate group-hover:text-[#d4a843] transition-colors">
+          {person.name}
+        </div>
+        {person.role && (
+          <div className="text-[#4a6080] text-[10px] truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            {person.role}
+          </div>
+        )}
+      </div>
+      <ExternalLink size={12} className="text-[#4a6080] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+    </Link>
+  );
+}
+
+function ConnectionGroup({ icon, title, color, people, maxShow = 6 }: {
+  icon: React.ReactNode;
+  title: string;
+  color: string;
+  people: SharedPerson[];
+  maxShow?: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  if (people.length === 0) return null;
+  const visible = expanded ? people : people.slice(0, maxShow);
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <div style={{ color }}>{icon}</div>
+        <span className="text-[9px] sm:text-[10px] font-bold tracking-[0.15em] uppercase" style={{ fontFamily: "'JetBrains Mono', monospace", color }}>
+          {title}
+        </span>
+        <span className="text-[#4a6080] text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          [{people.length}]
+        </span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        {visible.map(p => <ConnectionCard key={p.id} person={p} />)}
+      </div>
+      {people.length > maxShow && (
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="mt-2 text-[10px] font-bold tracking-wider uppercase transition-colors hover:text-[#c8d8f0]"
+          style={{ fontFamily: "'JetBrains Mono', monospace", color: "#4a6080" }}
+        >
+          {expanded ? "Show Less" : `Show ${people.length - maxShow} More`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SharedActivitySection({ contactId }: { contactId: number }) {
+  const { data, isLoading } = trpc.connections.sharedActivity.useQuery(
+    { contactId },
+    { enabled: contactId > 0 }
+  );
+
+  if (isLoading) {
+    return (
+      <div className="mt-6 sm:mt-8">
+        <div className="flex items-center gap-2 sm:gap-3 mb-4">
+          <div className="w-[3px] h-4 rounded-sm bg-[#60a5fa]" style={{ boxShadow: "0 0 10px rgba(96,165,250,0.5)" }} />
+          <span className="text-[#60a5fa] text-[9px] sm:text-[10px] font-extrabold tracking-[0.18em] sm:tracking-[0.22em] uppercase"
+            style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+            Business Connections
+          </span>
+        </div>
+        <div className="text-[#4a6080] text-xs py-4 text-center" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          Loading connections...
+        </div>
+      </div>
+    );
+  }
+
+  const totalConnections = (data?.colleagues.length ?? 0) + (data?.coAttendees.length ?? 0) + (data?.sectorPeers.length ?? 0) + (data?.sharedDomain.length ?? 0);
+
+  if (totalConnections === 0) return null;
+
+  return (
+    <div className="mt-6 sm:mt-8">
+      <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+        <div className="w-[3px] h-4 rounded-sm bg-[#60a5fa]" style={{ boxShadow: "0 0 10px rgba(96,165,250,0.5)" }} />
+        <span className="text-[#60a5fa] text-[9px] sm:text-[10px] font-extrabold tracking-[0.18em] sm:tracking-[0.22em] uppercase"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          Business Connections
+        </span>
+        <span className="text-[#4a6080] text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          [{totalConnections}]
+        </span>
+      </div>
+
+      <div className="space-y-6">
+        <ConnectionGroup
+          icon={<Building size={14} />}
+          title="Same Organization"
+          color="#f59e0b"
+          people={data?.colleagues ?? []}
+        />
+        <ConnectionGroup
+          icon={<Tag size={14} />}
+          title="Same Event"
+          color="#06b6d4"
+          people={data?.coAttendees ?? []}
+        />
+        <ConnectionGroup
+          icon={<Briefcase size={14} />}
+          title="Same Sector"
+          color="#8b5cf6"
+          people={data?.sectorPeers ?? []}
+        />
+        <ConnectionGroup
+          icon={<Globe size={14} />}
+          title="Same Company Domain"
+          color="#10b981"
+          people={data?.sharedDomain ?? []}
+        />
+      </div>
     </div>
   );
 }

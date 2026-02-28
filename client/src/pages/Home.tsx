@@ -8,7 +8,7 @@ import { Link, useLocation } from "wouter";
 import {
   Shield, LogOut, Search, Globe, List, Mail, ChevronRight,
   Users, MapPin, Building, X, ArrowUpDown, Download, Upload,
-  AlertTriangle, Clock, RotateCcw, Smartphone, Menu,
+  AlertTriangle, Clock, RotateCcw, Smartphone, Menu, Network,
 } from "lucide-react";
 import { toast } from "sonner";
 import IntelligentSearch from "@/components/IntelligentSearch";
@@ -408,6 +408,14 @@ export default function Home() {
               <div className="w-px h-3 bg-[#151f38]" />
               <StatPill icon={<Building size={10} />} value={stats.orgs} label="orgs" />
             </div>
+
+            {/* Connections */}
+            <Link href="/connections" className="flex items-center gap-1.5 px-3 py-1.5 rounded transition-all hover:bg-[rgba(96,165,250,0.12)]"
+              style={{ border: "1px solid rgba(96,165,250,0.2)" }}>
+              <Network size={12} className="text-[#60a5fa]" />
+              <span className="text-[#60a5fa] text-[10px] font-bold tracking-[0.12em] uppercase"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>Graph</span>
+            </Link>
 
             {/* Admin */}
             {access?.isAdmin && (

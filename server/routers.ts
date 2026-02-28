@@ -229,6 +229,170 @@ Keep it factual, concise, and actionable. Format with clear sections using markd
   }),
 
   // ═══════════════════════════════════════════════════════════════════
+  // CONNECTIONS — compute relationships between contacts
+  // ═══════════════════════════════════════════════════════════════════
+
+  connections: router({
+    graph: protectedProcedure.query(async () => {
+      const allContacts = await getAllContacts();
+      type Edge = { source: number; target: number; type: string; label: string };
+      const edges: Edge[] = [];
+      const edgeSet = new Set<string>();
+
+      const addEdge = (a: number, b: number, type: string, label: string) => {
+        const key = `${Math.min(a, b)}-${Math.max(a, b)}-${type}`;
+        if (!edgeSet.has(key)) {
+          edgeSet.add(key);
+          edges.push({ source: a, target: b, type, label });
+        }
+      };
+
+      // Build lookup maps
+      const byOrg = new Map<string, number[]>();
+      const byEvent = new Map<string, number[]>();
+      const bySector = new Map<string, number[]>();
+      const byCompanyDomain = new Map<string, number[]>();
+
+      for (const c of allContacts) {
+        if (c.organization) {
+          const key = c.organization.toLowerCase().trim();
+          if (!byOrg.has(key)) byOrg.set(key, []);
+          byOrg.get(key)!.push(c.id);
+        }
+        if (c.event) {
+          // Support multiple events separated by commas
+          const events = c.event.split(",").map(e => e.trim().toLowerCase());
+          for (const evt of events) {
+            if (!byEvent.has(evt)) byEvent.set(evt, []);
+            byEvent.get(evt)!.push(c.id);
+          }
+        }
+        if (c.sector) {
+          const sectors = c.sector.split(",").map(s => s.trim().toLowerCase());
+          for (const sec of sectors) {
+            if (!bySector.has(sec)) bySector.set(sec, []);
+            bySector.get(sec)!.push(c.id);
+          }
+        }
+        if (c.companyDomain) {
+          const key = c.companyDomain.toLowerCase().trim();
+          if (!byCompanyDomain.has(key)) byCompanyDomain.set(key, []);
+          byCompanyDomain.get(key)!.push(c.id);
+        }
+      }
+
+      // Generate edges for shared organization
+      for (const [org, ids] of Array.from(byOrg)) {
+        if (ids.length < 2 || ids.length > 20) continue;
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            addEdge(ids[i], ids[j], "organization", org);
+          }
+        }
+      }
+
+      // Generate edges for shared event (limit to avoid explosion)
+      for (const [evt, ids] of Array.from(byEvent)) {
+        if (ids.length < 2) continue;
+        // For large events, only connect contacts who also share org or sector
+        if (ids.length > 15) continue;
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            addEdge(ids[i], ids[j], "event", evt);
+          }
+        }
+      }
+
+      // Generate edges for shared sector
+      for (const [sec, ids] of Array.from(bySector)) {
+        if (ids.length < 2 || ids.length > 15) continue;
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            addEdge(ids[i], ids[j], "sector", sec);
+          }
+        }
+      }
+
+      // Generate edges for shared company domain
+      for (const [domain, ids] of Array.from(byCompanyDomain)) {
+        if (ids.length < 2 || ids.length > 10) continue;
+        for (let i = 0; i < ids.length; i++) {
+          for (let j = i + 1; j < ids.length; j++) {
+            addEdge(ids[i], ids[j], "company", domain);
+          }
+        }
+      }
+
+      const nodes = allContacts.map(c => ({
+        id: c.id,
+        name: c.name,
+        role: c.role,
+        organization: c.organization,
+        sector: c.sector,
+        event: c.event,
+        tier: c.tier,
+        location: c.location,
+        connectionCount: edges.filter(e => e.source === c.id || e.target === c.id).length,
+      }));
+
+      return { nodes, edges };
+    }),
+
+    // Per-contact shared activity for profile footer
+    sharedActivity: protectedProcedure
+      .input(z.object({ contactId: z.number() }))
+      .query(async ({ input }) => {
+        const contact = await getContactById(input.contactId);
+        if (!contact) return { colleagues: [], coAttendees: [], sectorPeers: [], sharedDomain: [] };
+
+        const allContacts = await getAllContacts();
+        const others = allContacts.filter(c => c.id !== input.contactId);
+
+        // Same organization
+        const colleagues = contact.organization
+          ? others.filter(c => c.organization && c.organization.toLowerCase().trim() === contact.organization!.toLowerCase().trim())
+              .map(c => ({ id: c.id, name: c.name, role: c.role, organization: c.organization, sharedValue: contact.organization! }))
+          : [];
+
+        // Same event
+        const contactEvents = contact.event ? contact.event.split(",").map(e => e.trim().toLowerCase()) : [];
+        const coAttendees = contactEvents.length > 0
+          ? others.filter(c => {
+              if (!c.event) return false;
+              const theirEvents = c.event.split(",").map(e => e.trim().toLowerCase());
+              return theirEvents.some(e => contactEvents.includes(e));
+            }).map(c => {
+              const theirEvents = c.event!.split(",").map(e => e.trim().toLowerCase());
+              const shared = theirEvents.filter(e => contactEvents.includes(e));
+              return { id: c.id, name: c.name, role: c.role, organization: c.organization, sharedValue: shared.join(", ") };
+            })
+          : [];
+
+        // Same sector
+        const contactSectors = contact.sector ? contact.sector.split(",").map(s => s.trim().toLowerCase()) : [];
+        const sectorPeers = contactSectors.length > 0
+          ? others.filter(c => {
+              if (!c.sector) return false;
+              const theirSectors = c.sector.split(",").map(s => s.trim().toLowerCase());
+              return theirSectors.some(s => contactSectors.includes(s));
+            }).map(c => {
+              const theirSectors = c.sector!.split(",").map(s => s.trim().toLowerCase());
+              const shared = theirSectors.filter(s => contactSectors.includes(s));
+              return { id: c.id, name: c.name, role: c.role, organization: c.organization, sharedValue: shared.join(", ") };
+            })
+          : [];
+
+        // Same company domain
+        const sharedDomain = contact.companyDomain
+          ? others.filter(c => c.companyDomain && c.companyDomain.toLowerCase().trim() === contact.companyDomain!.toLowerCase().trim())
+              .map(c => ({ id: c.id, name: c.name, role: c.role, organization: c.organization, sharedValue: contact.companyDomain! }))
+          : [];
+
+        return { colleagues, coAttendees, sectorPeers, sharedDomain };
+      }),
+  }),
+
+  // ═══════════════════════════════════════════════════════════════════
   // ACCESS REQUESTS
   // ═══════════════════════════════════════════════════════════════════
 

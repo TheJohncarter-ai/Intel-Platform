@@ -98,3 +98,16 @@
 - [x] Ensure new contacts are searchable via LLM intelligent search (with sector, confidence, event, company, LinkedIn)
 - [x] Tests for new fields (43 total passing)
 - [x] Push to GitHub + checkpoint
+
+## Phase 8 — Connections View + Shared Activity Footer
+- [ ] Backend: endpoint to compute all contact-to-contact relationships (shared org, event, sector)
+- [ ] Backend: endpoint for per-contact shared activity (colleagues, co-attendees, sector peers)
+- [ ] Frontend: Connections network graph page with force-directed layout (d3-force)
+- [ ] Frontend: Interactive nodes (click to profile), edges labeled by relationship type
+- [ ] Frontend: Filter/highlight by relationship type (org, event, sector)
+- [ ] Frontend: Add "Connections" view toggle to Home header
+- [ ] Frontend: Shared Activity footer on Profile page — same company, same event, same sector
+- [ ] Frontend: Clickable connections linking to other profiles
+- [ ] Route setup for /connections page
+- [ ] Tests for connections endpoint
+- [ ] Push to GitHub + checkpoint

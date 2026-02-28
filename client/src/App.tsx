@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import RequestAccess from "./pages/RequestAccess";
+import Connections from "./pages/Connections";
 
 function Router() {
   return (
@@ -21,6 +22,9 @@ function Router() {
       </Route>
       <Route path="/admin">
         <AuthGate requireAdmin><Admin /></AuthGate>
+      </Route>
+      <Route path="/connections">
+        <AuthGate><Connections /></AuthGate>
       </Route>
       <Route path="/request-access" component={RequestAccess} />
       <Route path="/404" component={NotFound} />
