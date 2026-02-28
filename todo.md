@@ -51,12 +51,12 @@
 ## Phase 4 — GitHub Integration + Arcs, Import/Export, Last Contacted
 - [x] Pull King's latest changes from GitHub repo (README.md + todo.md update)
 - [x] Review and integrate King's changes with current build
-- [ ] Relationship arcs on globe (animated arcs between contacts sharing org/group)
-- [ ] CSV export endpoint (download all contacts as CSV)
-- [ ] CSV import endpoint (bulk-add contacts from CSV upload)
-- [ ] CSV import/export UI on Home page
-- [ ] lastContactedAt field on contacts table (auto-update when notes added)
-- [ ] Stale contacts dashboard view (contacts not engaged recently)
-- [ ] Push to GitHub repo
-- [ ] Phase 4 tests
-- [ ] Phase 4 checkpoint
+- [x] Relationship arcs on globe (animated arcs between contacts sharing org/group)
+- [x] CSV export endpoint (download all contacts as CSV)
+- [x] CSV import endpoint (bulk-add contacts from CSV upload)
+- [x] CSV import/export UI on Home page
+- [x] lastContactedAt field on contacts table (auto-update when notes added)
+- [x] Stale contacts dashboard view (contacts not engaged recently)
+- [x] Push to GitHub repo
+- [x] Phase 4 tests (40 total passing)
+- [x] Phase 4 checkpoint
