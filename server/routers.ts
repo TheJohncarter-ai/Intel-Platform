@@ -135,6 +135,38 @@ Keep it factual, concise, and actionable. Format with clear sections using markd
         return getStaleContacts(input.daysSince);
       }),
 
+    intelligentSearch: protectedProcedure
+      .input(z.object({ question: z.string().min(1).max(1000) }))
+      .mutation(async ({ input }) => {
+        // Gather all contact data + recent notes as context
+        const allContacts = await getAllContacts();
+        const contactSummaries = await Promise.all(
+          allContacts.map(async (c) => {
+            const notes = await getNotesByContactId(c.id);
+            const recentNotes = notes.slice(0, 3).map(n => `[${n.noteType}] ${n.content.substring(0, 200)}`).join("\n");
+            return `[ID:${c.id}] ${c.name} | Role: ${c.role || "N/A"} | Org: ${c.organization || "N/A"} | Location: ${c.location || "N/A"} | Group: ${c.group || "N/A"} | Tier: ${c.tier || "N/A"} | Email: ${c.email || "N/A"} | Notes: ${c.notes || "N/A"}${recentNotes ? "\nRecent logs:\n" + recentNotes : ""}`;
+          })
+        );
+
+        const contextBlock = contactSummaries.join("\n\n");
+
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `You are an intelligent search assistant for a strategic network intelligence platform. You have access to the user's full contact database. When answering questions, always reference specific contacts by their exact name and include their ID in the format [[ID:number|Name]] so the frontend can create links. Be concise, specific, and actionable. If multiple contacts match, list them all. If no contacts match, say so clearly.`,
+            },
+            {
+              role: "user",
+              content: `Here is the full contact database:\n\n${contextBlock}\n\n---\n\nUser question: ${input.question}`,
+            },
+          ],
+        });
+
+        const answer = String(response.choices?.[0]?.message?.content || "I couldn't process that question. Please try rephrasing.");
+        return { answer };
+      }),
+
     exportCsv: protectedProcedure.query(async () => {
       const allContacts = await getAllContacts();
       const headers = ["name","role","organization","location","group","tier","email","phone","notes","linkedinUrl"];

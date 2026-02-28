@@ -73,3 +73,13 @@
 - [x] Contact cards and bottom panel responsive on small screens
 - [x] Tables scroll horizontally on mobile
 - [x] Phase 5 checkpoint + GitHub push
+
+## Phase 6 — LLM-Powered Intelligent Search
+- [ ] Backend: LLM search endpoint that gathers all contact data as context
+- [ ] Backend: Uses invokeLLM with contact names, roles, orgs, bios, regions, notes
+- [ ] Backend: Returns formatted answer referencing specific contacts with IDs
+- [ ] Frontend: Floating button (lightbulb+question mark, glowing/pulsing) on list view only
+- [ ] Frontend: Chat-style search overlay with natural language input
+- [ ] Frontend: Results link to contact profiles when mentioning names
+- [ ] Tests for the search endpoint
+- [ ] Push to GitHub + checkpoint

@@ -11,6 +11,7 @@ import {
   AlertTriangle, Clock, RotateCcw, Smartphone, Menu,
 } from "lucide-react";
 import { toast } from "sonner";
+import IntelligentSearch from "@/components/IntelligentSearch";
 
 type ViewMode = "globe" | "list" | "stale";
 type SortKey = "name" | "organization" | "location" | "tier" | "group";
@@ -871,6 +872,9 @@ export default function Home() {
           </div>
         )}
       </main>
+
+      {/* ═══ INTELLIGENT SEARCH — only visible in list view ═══ */}
+      {viewMode === "list" && <IntelligentSearch />}
     </div>
   );
 }
