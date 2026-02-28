@@ -83,3 +83,18 @@
 - [x] Frontend: Results link to contact profiles when mentioning names
 - [x] Tests for the search endpoint (43 total passing)
 - [x] Push to GitHub + checkpoint
+
+## Phase 7 — Import 37 Researched Contacts
+- [x] Update contacts schema with new fields: linkedinUrl, email, phone, sector, confidence, companyDomain, companyDescription
+- [x] Migrate database with new schema
+- [x] Add event field to contacts schema for tagging (e.g., "Black Bull Investors Summit")
+- [x] Tag all 37 new contacts with "Black Bull Investors Summit" event
+- [x] Create seed script to import all 37 contacts from CSV + markdown bios + event tag
+- [x] Update backend to expose new fields in contact queries
+- [x] Update Profile page: LinkedIn link, email button, sector tags, confidence indicator, company info, event badge
+- [x] Make event visible and searchable in LLM intelligent search
+- [x] Update Home list view: show sector tags, confidence badges, LinkedIn/email icons, event tags
+- [x] Ensure new contacts appear on globe mapped to correct regions (72 total nodes)
+- [x] Ensure new contacts are searchable via LLM intelligent search (with sector, confidence, event, company, LinkedIn)
+- [x] Tests for new fields (43 total passing)
+- [x] Push to GitHub + checkpoint

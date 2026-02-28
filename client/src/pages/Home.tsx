@@ -731,7 +731,7 @@ export default function Home() {
             {/* Desktop Table (hidden on mobile) */}
             <div className="rounded-lg overflow-hidden hidden md:block" style={{ border: "1px solid #151f38" }}>
               {/* Table Header */}
-              <div className="grid grid-cols-[1fr_1fr_0.8fr_0.6fr_0.5fr_80px] gap-0 px-4 py-3"
+              <div className="grid grid-cols-[1fr_1fr_0.8fr_0.6fr_0.5fr_0.6fr_80px] gap-0 px-4 py-3"
                 style={{ background: "#060914", borderBottom: "1px solid #151f38" }}>
                 {([
                   { key: "name", label: "Name" },
@@ -757,6 +757,10 @@ export default function Home() {
                 ))}
                 <span className="text-[9px] font-extrabold tracking-[0.18em] uppercase text-[#4a6080] text-right"
                   style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  Tags
+                </span>
+                <span className="text-[9px] font-extrabold tracking-[0.18em] uppercase text-[#4a6080] text-right"
+                  style={{ fontFamily: "'JetBrains Mono', monospace" }}>
                   Actions
                 </span>
               </div>
@@ -771,7 +775,7 @@ export default function Home() {
                 return (
                   <div
                     key={c.id}
-                    className="grid grid-cols-[1fr_1fr_0.8fr_0.6fr_0.5fr_80px] gap-0 px-4 py-3 items-center transition-colors hover:bg-[#0d1020] group"
+                    className="grid grid-cols-[1fr_1fr_0.8fr_0.6fr_0.5fr_0.6fr_80px] gap-0 px-4 py-3 items-center transition-colors hover:bg-[#0d1020] group"
                     style={{
                       borderBottom: i < listContacts.length - 1 ? "1px solid #0d1020" : "none",
                       background: i % 2 === 0 ? "transparent" : "rgba(6,9,20,0.4)",
@@ -817,6 +821,30 @@ export default function Home() {
                     ) : (
                       <span className="text-[#2a3a54] text-[11px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>—</span>
                     )}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {c.sector && (
+                        <span className="text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded"
+                          style={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            background: "rgba(168,85,247,0.08)",
+                            border: "1px solid rgba(168,85,247,0.25)",
+                            color: "#a855f7",
+                          }}>
+                          {c.sector.split(",")[0].trim()}
+                        </span>
+                      )}
+                      {c.event && (
+                        <span className="text-[8px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded"
+                          style={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            background: "rgba(236,72,153,0.08)",
+                            border: "1px solid rgba(236,72,153,0.25)",
+                            color: "#ec4899",
+                          }}>
+                          {c.event.split(" ")[0]}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center justify-end gap-1.5">
                       {c.email && (
                         <a href={`mailto:${c.email}`}

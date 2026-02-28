@@ -144,7 +144,7 @@ Keep it factual, concise, and actionable. Format with clear sections using markd
           allContacts.map(async (c) => {
             const notes = await getNotesByContactId(c.id);
             const recentNotes = notes.slice(0, 3).map(n => `[${n.noteType}] ${n.content.substring(0, 200)}`).join("\n");
-            return `[ID:${c.id}] ${c.name} | Role: ${c.role || "N/A"} | Org: ${c.organization || "N/A"} | Location: ${c.location || "N/A"} | Group: ${c.group || "N/A"} | Tier: ${c.tier || "N/A"} | Email: ${c.email || "N/A"} | Notes: ${c.notes || "N/A"}${recentNotes ? "\nRecent logs:\n" + recentNotes : ""}`;
+            return `[ID:${c.id}] ${c.name} | Role: ${c.role || "N/A"} | Org: ${c.organization || "N/A"} | Location: ${c.location || "N/A"} | Group: ${c.group || "N/A"} | Tier: ${c.tier || "N/A"} | Sector: ${c.sector || "N/A"} | Confidence: ${c.confidence || "N/A"} | Event: ${c.event || "N/A"} | Company: ${c.companyDomain || "N/A"} | Email: ${c.email || "N/A"} | Phone: ${c.phone || "N/A"} | LinkedIn: ${c.linkedinUrl || "N/A"} | Notes: ${c.notes?.substring(0, 300) || "N/A"}${recentNotes ? "\nRecent logs:\n" + recentNotes : ""}`;
           })
         );
 

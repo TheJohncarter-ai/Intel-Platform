@@ -36,6 +36,20 @@
       "when": 1772249489881,
       "tag": "0004_tough_vulcan",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1772294475869,
+      "tag": "0005_sturdy_fenris",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1772294534111,
+      "tag": "0006_odd_orphan",
+      "breakpoints": true
     }
   ]
 }

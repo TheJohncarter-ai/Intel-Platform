@@ -1,13 +1,13 @@
-import { trpc } from "@/lib/trpc";
 import { useParams, Link } from "wouter";
 import { useState } from "react";
 import {
   ArrowLeft, Mail, Phone, MapPin, Building, Briefcase, Users, Tag,
   Plus, Trash2, MessageSquare, PhoneCall, MailIcon, Clock, FileText,
-  Edit3, X, Save, Sparkles, ExternalLink, Linkedin, Info,
+  Edit3, X, Save, Sparkles, ExternalLink, Linkedin, Info, Zap, Award, Globe,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Streamdown } from "streamdown";
+import { trpc } from "@/lib/trpc";
 
 const NOTE_TYPE_META: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
   meeting:   { label: "Meeting",   icon: <MessageSquare size={12} />, color: "#d4a843" },
@@ -17,6 +17,48 @@ const NOTE_TYPE_META: Record<string, { label: string; icon: React.ReactNode; col
   general:   { label: "General",   icon: <FileText size={12} />,     color: "#4a6080" },
   research:  { label: "Research",  icon: <Sparkles size={12} />,     color: "#f59e0b" },
 };
+
+const CONFIDENCE_COLORS: Record<string, { bg: string; border: string; text: string }> = {
+  high:   { bg: "rgba(74,222,128,0.08)", border: "rgba(74,222,128,0.25)", text: "#4ade80" },
+  medium: { bg: "rgba(212,168,67,0.08)", border: "rgba(212,168,67,0.25)", text: "#d4a843" },
+  low:    { bg: "rgba(248,113,113,0.08)", border: "rgba(248,113,113,0.25)", text: "#f87171" },
+};
+
+function TierBadge({ tier }: { tier: string }) {
+  const tierColors: Record<string, string> = {
+    "Tier 1": "#4ade80",
+    "Tier 2": "#d4a843",
+    "Tier 3": "#f87171",
+  };
+  const color = tierColors[tier] || "#60a5fa";
+  return (
+    <span className="text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 sm:px-2 py-0.5 rounded"
+      style={{
+        fontFamily: "'JetBrains Mono', monospace",
+        background: `${color}20`,
+        border: `1px solid ${color}40`,
+        color,
+      }}>
+      {tier}
+    </span>
+  );
+}
+
+function InfoCard({ icon, label, value, action }: { icon: React.ReactNode; label: string; value: string; action?: React.ReactNode }) {
+  return (
+    <div className="p-3 sm:p-4 rounded-lg bg-[#060914] border border-[#151f38] flex items-start gap-3 group hover:border-[#1a3a6a] transition-colors">
+      <div className="text-[#d4a843] shrink-0 mt-0.5">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <div className="text-[#4a6080] text-[9px] font-extrabold tracking-[0.18em] uppercase mb-1"
+          style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          {label}
+        </div>
+        <div className="text-[#c8d8f0] text-xs sm:text-sm break-words">{value}</div>
+      </div>
+      {action && <div className="shrink-0">{action}</div>}
+    </div>
+  );
+}
 
 export default function Profile() {
   const params = useParams<{ id: string }>();
@@ -150,6 +192,23 @@ export default function Profile() {
                   <Mail size={12} /> Email
                 </a>
               )}
+              {contact.linkedinUrl && (
+                <a
+                  href={contact.linkedinUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[10px] font-bold tracking-wider uppercase transition-all hover:bg-[rgba(59,130,246,0.15)]"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    background: "rgba(59,130,246,0.08)",
+                    border: "1px solid rgba(59,130,246,0.25)",
+                    color: "#3b82f6",
+                    textDecoration: "none",
+                  }}
+                >
+                  <Linkedin size={12} /> LinkedIn
+                </a>
+              )}
             </div>
           </div>
 
@@ -211,6 +270,23 @@ export default function Profile() {
                 <Phone size={11} /> Call
               </a>
             )}
+            {contact.linkedinUrl && (
+              <a
+                href={contact.linkedinUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded text-[9px] font-bold tracking-wider uppercase transition-all shrink-0"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: "rgba(59,130,246,0.08)",
+                  border: "1px solid rgba(59,130,246,0.25)",
+                  color: "#3b82f6",
+                  textDecoration: "none",
+                }}
+              >
+                <Linkedin size={11} /> LinkedIn
+              </a>
+            )}
           </div>
         </div>
       </div>
@@ -233,6 +309,28 @@ export default function Profile() {
                 </span>
               )}
               {contact.tier && <TierBadge tier={contact.tier} />}
+              {contact.confidence && (
+                <span className="text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 sm:px-2 py-0.5 rounded flex items-center gap-1"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    ...CONFIDENCE_COLORS[contact.confidence],
+                  }}>
+                  <Award size={10} />
+                  {contact.confidence}
+                </span>
+              )}
+              {contact.event && (
+                <span className="text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 sm:px-2 py-0.5 rounded flex items-center gap-1"
+                  style={{
+                    fontFamily: "'JetBrains Mono', monospace",
+                    background: "rgba(168,85,247,0.08)",
+                    border: "1px solid rgba(168,85,247,0.25)",
+                    color: "#a855f7",
+                  }}>
+                  <Zap size={10} />
+                  {contact.event}
+                </span>
+              )}
               {contact.lastResearchedAt && (
                 <span className="text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 sm:px-2 py-0.5 rounded"
                   style={{
@@ -269,6 +367,7 @@ export default function Profile() {
                 { key: "group", label: "Group", placeholder: contact.group || "e.g. Colombian VC" },
                 { key: "tier", label: "Tier", placeholder: contact.tier || "e.g. Tier 1" },
                 { key: "linkedinUrl", label: "LinkedIn URL", placeholder: contact.linkedinUrl || "https://linkedin.com/in/..." },
+                { key: "sector", label: "Sector/Industry", placeholder: contact.sector || "e.g. Venture Capital, Real Estate" },
               ] as { key: string; label: string; placeholder: string }[]).map(field => (
                 <div key={field.key}>
                   <label className="block text-[#4a6080] text-[9px] font-extrabold tracking-[0.18em] uppercase mb-1.5"
@@ -319,6 +418,8 @@ export default function Profile() {
           {contact.location && <InfoCard icon={<MapPin size={14} />} label="Location" value={contact.location} />}
           {contact.group && <InfoCard icon={<Users size={14} />} label="Group" value={contact.group} />}
           {contact.role && <InfoCard icon={<Briefcase size={14} />} label="Role" value={contact.role} />}
+          {contact.sector && <InfoCard icon={<Zap size={14} />} label="Sector" value={contact.sector} />}
+          {contact.companyDomain && <InfoCard icon={<Globe size={14} />} label="Domain" value={contact.companyDomain} />}
           {contact.email && (
             <InfoCard icon={<Mail size={14} />} label="Email" value={contact.email}
               action={<a href={`mailto:${contact.email}`} className="text-[#60a5fa] hover:text-[#93bbfc] active:text-[#93bbfc] transition-colors p-1"><ExternalLink size={12} /></a>} />
@@ -333,13 +434,27 @@ export default function Profile() {
           )}
         </div>
 
-        {/* Static Notes */}
+        {/* Company Description */}
+        {contact.companyDescription && (
+          <div className="p-3 sm:p-4 rounded-lg bg-[#060914] border border-[#151f38] mb-5 sm:mb-6">
+            <div className="flex items-center gap-2 mb-2 sm:mb-3">
+              <Building size={14} className="text-[#d4a843]" />
+              <span className="text-[#d4a843] text-[9px] font-extrabold tracking-[0.18em] uppercase"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>Company Overview</span>
+            </div>
+            <p className="text-[#4a6080] text-xs sm:text-sm leading-relaxed" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              {contact.companyDescription}
+            </p>
+          </div>
+        )}
+
+        {/* Static Notes / Bio */}
         {contact.notes && (
           <div className="p-3 sm:p-4 rounded-lg bg-[#060914] border border-[#151f38] mb-5 sm:mb-6">
             <div className="flex items-center gap-2 mb-2 sm:mb-3">
               <Tag size={14} className="text-[#d4a843]" />
               <span className="text-[#d4a843] text-[9px] font-extrabold tracking-[0.18em] uppercase"
-                style={{ fontFamily: "'JetBrains Mono', monospace" }}>Notes</span>
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>Bio</span>
             </div>
             <p className="text-[#4a6080] text-xs sm:text-sm leading-relaxed" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
               {contact.notes}
@@ -362,13 +477,14 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
   const utils = trpc.useUtils();
   const { data: notes, isLoading } = trpc.notes.listByContact.useQuery({ contactId });
   const [showForm, setShowForm] = useState(false);
-  const [noteType, setNoteType] = useState<"meeting" | "call" | "email" | "follow_up" | "general">("meeting");
+  const [noteType, setNoteType] = useState<"meeting" | "call" | "email" | "follow_up" | "general" | "research">("meeting");
   const [content, setContent] = useState("");
   const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
 
   const addMutation = trpc.notes.add.useMutation({
     onSuccess: () => {
       utils.notes.listByContact.invalidate({ contactId });
+      utils.contacts.getById.invalidate({ id: contactId });
       setContent("");
       setShowForm(false);
       toast.success("Note added");
@@ -379,6 +495,7 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
   const deleteMutation = trpc.notes.delete.useMutation({
     onSuccess: () => {
       utils.notes.listByContact.invalidate({ contactId });
+      utils.contacts.getById.invalidate({ id: contactId });
       setDeleteConfirmId(null);
       toast.success("Note deleted");
     },
@@ -399,7 +516,7 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded text-[9px] sm:text-[10px] font-bold tracking-wider uppercase transition-all"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[9px] sm:text-[10px] font-bold tracking-wider uppercase transition-all hover:bg-[rgba(212,168,67,0.15)]"
           style={{
             fontFamily: "'JetBrains Mono', monospace",
             background: showForm ? "rgba(248,113,113,0.08)" : "rgba(212,168,67,0.08)",
@@ -407,185 +524,112 @@ function MeetingNotesSection({ contactId }: { contactId: number }) {
             color: showForm ? "#f87171" : "#d4a843",
           }}
         >
-          {showForm ? <><X size={11} /> Cancel</> : <><Plus size={11} /> Add Note</>}
+          {showForm ? <><X size={12} /> Cancel</> : <><Plus size={12} /> Add Note</>}
         </button>
       </div>
 
-      {/* Add Note Form */}
       {showForm && (
-        <div className="p-3 sm:p-4 rounded-lg bg-[#060914] border border-[#151f38] mb-4">
-          <div className="flex gap-1.5 sm:gap-2 mb-3 flex-wrap">
-            {(Object.entries(NOTE_TYPE_META) as [string, typeof NOTE_TYPE_META[string]][])
-              .filter(([key]) => key !== "research")
-              .map(([type, meta]) => {
-                const isActive = noteType === type;
-                return (
-                  <button
-                    key={type}
-                    onClick={() => setNoteType(type as typeof noteType)}
-                    className="flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 rounded text-[9px] sm:text-[10px] tracking-wider uppercase transition-all"
-                    style={{
-                      fontFamily: "'JetBrains Mono', monospace",
-                      background: isActive ? `${meta.color}18` : "transparent",
-                      border: `1px solid ${isActive ? `${meta.color}50` : "#151f38"}`,
-                      color: isActive ? meta.color : "#4a6080",
-                    }}
-                  >
-                    {meta.icon} {meta.label}
-                  </button>
-                );
-              })}
+        <div className="mb-4 p-3 sm:p-4 rounded-lg bg-[#060914] border border-[#151f38]">
+          <div className="mb-3">
+            <label className="block text-[#4a6080] text-[9px] font-extrabold tracking-[0.18em] uppercase mb-2"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+              Note Type
+            </label>
+            <select
+              value={noteType}
+              onChange={(e) => setNoteType(e.target.value as any)}
+              className="w-full px-3 py-2 rounded text-[12px] text-[#c8d8f0] bg-[#0a0c18] border border-[#151f38] outline-none focus:border-[#1a3a6a] transition-colors"
+              style={{ fontFamily: "'JetBrains Mono', monospace" }}
+            >
+              {Object.entries(NOTE_TYPE_META).map(([k, v]) => (
+                <option key={k} value={k}>{v.label}</option>
+              ))}
+            </select>
           </div>
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Log your interaction, meeting notes, follow-up items..."
-            className="w-full p-3 rounded text-xs sm:text-sm text-[#c8d8f0] placeholder-[#2a3a54] resize-none mb-3 bg-[#0a0c18] border border-[#151f38] outline-none focus:border-[#1a3a6a] transition-colors"
+            placeholder="Write your note here..."
+            className="w-full px-3 py-2 rounded text-[12px] text-[#c8d8f0] placeholder-[#2a3a54] bg-[#0a0c18] border border-[#151f38] outline-none focus:border-[#1a3a6a] transition-colors resize-none mb-3"
             style={{ fontFamily: "'JetBrains Mono', monospace", minHeight: 100 }}
-            maxLength={10000}
           />
-          <button
-            onClick={() => content.trim() && addMutation.mutate({ contactId, noteType, content: content.trim() })}
-            disabled={!content.trim() || addMutation.isPending}
-            className="flex items-center gap-1.5 px-4 py-2 rounded text-[10px] sm:text-xs font-bold tracking-wider uppercase disabled:opacity-40 transition-all"
-            style={{ fontFamily: "'JetBrains Mono', monospace", background: "#d4a843", color: "#0a0c18" }}
-          >
-            <Save size={12} />
-            {addMutation.isPending ? "Saving..." : "Save Note"}
-          </button>
+          <div className="flex justify-end">
+            <button
+              onClick={() => addMutation.mutate({ contactId, noteType, content })}
+              disabled={addMutation.isPending || !content.trim()}
+              className="flex items-center gap-1.5 px-4 py-2 rounded text-[11px] font-bold tracking-wider uppercase disabled:opacity-40 transition-all"
+              style={{ fontFamily: "'JetBrains Mono', monospace", background: "#d4a843", color: "#0a0c18" }}
+            >
+              <Save size={12} />
+              {addMutation.isPending ? "Saving..." : "Save Note"}
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Notes List */}
       {isLoading ? (
-        <div className="text-center py-8">
-          <span className="text-[#4a6080] text-sm animate-pulse" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            Loading notes...
-          </span>
+        <div className="text-[#4a6080] text-xs text-center py-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          Loading notes...
         </div>
-      ) : !notes?.length ? (
-        <div className="text-center py-8 sm:py-10 rounded-lg bg-[#060914] border border-[#151f38]">
-          <span className="text-[#2a3a54] text-xs sm:text-sm" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-            No relationship logs yet
-          </span>
+      ) : notes && notes.length > 0 ? (
+        <div className="space-y-2">
+          {notes.map((note) => (
+            <div key={note.id} className="p-3 sm:p-4 rounded-lg bg-[#060914] border border-[#151f38] hover:border-[#1a3a6a] transition-colors group">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-[8px] sm:text-[9px] font-bold tracking-wider uppercase px-1.5 sm:px-2 py-0.5 rounded flex items-center gap-1"
+                    style={{
+                      fontFamily: "'JetBrains Mono', monospace",
+                      background: `${NOTE_TYPE_META[note.noteType].color}20`,
+                      border: `1px solid ${NOTE_TYPE_META[note.noteType].color}40`,
+                      color: NOTE_TYPE_META[note.noteType].color,
+                    }}>
+                    {NOTE_TYPE_META[note.noteType].icon}
+                    {NOTE_TYPE_META[note.noteType].label}
+                  </span>
+                  <span className="text-[#4a6080] text-[8px] sm:text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                    {new Date(note.createdAt).toLocaleDateString()} {new Date(note.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setDeleteConfirmId(note.id)}
+                  className="text-[#4a6080] hover:text-[#f87171] active:text-[#f87171] transition-colors p-1 opacity-0 group-hover:opacity-100"
+                >
+                  <Trash2 size={12} />
+                </button>
+              </div>
+              <p className="text-[#c8d8f0] text-xs sm:text-sm leading-relaxed mb-2">{note.content}</p>
+              <div className="text-[#4a6080] text-[8px] sm:text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                by {note.authorName || note.authorEmail}
+              </div>
+
+              {deleteConfirmId === note.id && (
+                <div className="mt-2 p-2 bg-[#f87171]20 border border-[#f87171]40 rounded flex items-center gap-2">
+                  <span className="text-[#f87171] text-[9px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>Delete this note?</span>
+                  <button
+                    onClick={() => deleteMutation.mutate({ id: note.id })}
+                    className="text-[#f87171] hover:text-[#fca5a5] text-[9px] font-bold tracking-wider uppercase"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    Confirm
+                  </button>
+                  <button
+                    onClick={() => setDeleteConfirmId(null)}
+                    className="text-[#4a6080] hover:text-[#c8d8f0] text-[9px] font-bold tracking-wider uppercase"
+                    style={{ fontFamily: "'JetBrains Mono', monospace" }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       ) : (
-        <div className="space-y-2">
-          {notes.map((note) => {
-            const meta = NOTE_TYPE_META[note.noteType] ?? NOTE_TYPE_META.general;
-            const isResearch = note.noteType === "research";
-            return (
-              <div key={note.id} className="p-3 sm:p-4 rounded-lg bg-[#060914] border border-[#151f38] group transition-colors hover:border-[#1a3a6a]">
-                {/* Note header — stacks on mobile */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-0 mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 rounded text-[8px] sm:text-[9px] font-bold tracking-wider uppercase"
-                      style={{
-                        fontFamily: "'JetBrains Mono', monospace",
-                        background: `${meta.color}12`,
-                        border: `1px solid ${meta.color}30`,
-                        color: meta.color,
-                      }}>
-                      {meta.icon} {meta.label}
-                    </span>
-                    <span className="text-[#4a6080] text-[9px] sm:text-[10px] truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {note.authorName || note.authorEmail}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[#2a3a54] text-[9px] sm:text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                      {new Date(note.createdAt).toLocaleString()}
-                    </span>
-                    {deleteConfirmId === note.id ? (
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => deleteMutation.mutate({ id: note.id })}
-                          className="text-[#f87171] text-[9px] font-bold px-2 py-0.5 rounded transition-all"
-                          style={{
-                            fontFamily: "'JetBrains Mono', monospace",
-                            background: "rgba(248,113,113,0.1)",
-                            border: "1px solid rgba(248,113,113,0.3)",
-                          }}
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirmId(null)}
-                          className="text-[#4a6080] text-[9px] px-2 py-0.5"
-                          style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => setDeleteConfirmId(note.id)}
-                        className="sm:opacity-0 sm:group-hover:opacity-100 text-[#f87171] hover:text-[#fca5a5] transition-all p-1"
-                        title="Delete note"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {isResearch ? (
-                  <div className="prose prose-invert prose-sm max-w-none text-[#c8d8f0] overflow-x-auto"
-                    style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12 }}>
-                    <Streamdown>{note.content}</Streamdown>
-                  </div>
-                ) : (
-                  <p className="text-[#c8d8f0] text-xs sm:text-sm leading-relaxed whitespace-pre-wrap"
-                    style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-                    {note.content}
-                  </p>
-                )}
-              </div>
-            );
-          })}
+        <div className="text-[#4a6080] text-xs text-center py-4" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+          No notes yet. Add one to start tracking interactions.
         </div>
       )}
     </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// SUB-COMPONENTS
-// ═══════════════════════════════════════════════════════════════════════
-
-function InfoCard({ icon, label, value, action }: { icon: React.ReactNode; label: string; value: string; action?: React.ReactNode }) {
-  return (
-    <div className="p-3 sm:p-4 rounded-lg bg-[#060914] border border-[#151f38] hover:border-[#1a3a6a] transition-colors">
-      <div className="flex items-center justify-between mb-1.5 sm:mb-2">
-        <div className="flex items-center gap-2">
-          <span className="text-[#d4a843]">{icon}</span>
-          <span className="text-[#4a6080] text-[8px] sm:text-[9px] font-extrabold tracking-[0.18em] uppercase"
-            style={{ fontFamily: "'JetBrains Mono', monospace" }}>{label}</span>
-        </div>
-        {action}
-      </div>
-      <div className="text-[#c8d8f0] text-xs sm:text-sm truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function TierBadge({ tier }: { tier: string }) {
-  const styles: Record<string, { bg: string; border: string; text: string }> = {
-    "Tier 1": { bg: "#0d1f0d", border: "#1a4a1a", text: "#4ade80" },
-    "Tier 2": { bg: "#0d1828", border: "#1a3a5a", text: "#60a5fa" },
-    "Tier 3": { bg: "#1f0d0d", border: "#4a1a1a", text: "#f87171" },
-  };
-  const s = styles[tier] ?? { bg: "#120d1f", border: "#2d1a5a", text: "#a78bfa" };
-  return (
-    <span className="text-[8px] sm:text-[9px] font-extrabold tracking-[0.1em] uppercase px-1.5 sm:px-2 py-0.5 rounded-sm"
-      style={{
-        fontFamily: "'JetBrains Mono', monospace",
-        background: s.bg,
-        border: `1px solid ${s.border}`,
-        color: s.text,
-      }}>
-      {tier}
-    </span>
   );
 }

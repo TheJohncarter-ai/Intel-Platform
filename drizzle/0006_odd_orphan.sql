@@ -1,0 +1,1 @@
+ALTER TABLE `contacts` ADD `event` varchar(255);
