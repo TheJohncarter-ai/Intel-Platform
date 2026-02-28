@@ -62,8 +62,8 @@
 - [x] Phase 4 checkpoint
 
 ## Phase 5 — GitHub Sync + Mobile Optimization
-- [ ] Push all current code to GitHub main branch
-- [ ] Verify GitHub repo is fully up to date
+- [x] Push all current code to GitHub main branch
+- [x] Verify GitHub repo is fully up to date
 - [ ] Responsive Home page layout (header, globe, list, stale views)
 - [ ] Portrait-to-landscape rotation prompt animation on mobile globe view
 - [ ] Responsive Profile page (contact info, notes, forms)

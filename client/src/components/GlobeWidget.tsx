@@ -240,8 +240,8 @@ function ContactCard({ contact }: { contact: Contact }) {
         textDecoration: "none",
         cursor: "pointer",
         transition: "all 0.15s ease",
-        minWidth: 200,
-        maxWidth: 260,
+        minWidth: typeof window !== 'undefined' && window.innerWidth < 640 ? 160 : 200,
+        maxWidth: typeof window !== 'undefined' && window.innerWidth < 640 ? 200 : 260,
         flexShrink: 0,
         position: "relative",
         overflow: "hidden",
@@ -425,7 +425,7 @@ function ContactPanel({ regions, onDeselect, onClearAll }: ContactPanelProps) {
         backdropFilter: "blur(16px)",
         WebkitBackdropFilter: "blur(16px)",
         transition: "all 0.25s cubic-bezier(0.16,1,0.3,1)",
-        maxHeight: collapsed ? "44px" : "280px",
+        maxHeight: collapsed ? "44px" : (typeof window !== 'undefined' && window.innerWidth < 640 ? "220px" : "280px"),
         overflow: "hidden",
       }}
     >
@@ -433,11 +433,12 @@ function ContactPanel({ regions, onDeselect, onClearAll }: ContactPanelProps) {
       <div style={{
         display: "flex",
         alignItems: "center",
-        padding: "0 16px",
+        padding: typeof window !== 'undefined' && window.innerWidth < 640 ? "0 10px" : "0 16px",
         height: 44,
-        gap: 12,
+        gap: typeof window !== 'undefined' && window.innerWidth < 640 ? 6 : 12,
         borderBottom: collapsed ? "none" : `1px solid ${COLORS.panelBorder}`,
         flexShrink: 0,
+        overflowX: "auto",
       }}>
         {/* Status indicator */}
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -589,9 +590,9 @@ function ContactPanel({ regions, onDeselect, onClearAll }: ContactPanelProps) {
 
               {/* Scrollable contact cards row */}
               <div style={{
-                display: "flex",
-                gap: 8,
-                padding: "4px 16px 12px",
+              display: "flex",
+              gap: 8,
+              padding: typeof window !== 'undefined' && window.innerWidth < 640 ? "4px 10px 10px" : "4px 16px 12px",
                 overflowX: "auto",
                 scrollbarWidth: "thin",
                 scrollbarColor: `${COLORS.wireframe} transparent`,
@@ -614,68 +615,82 @@ function ContactPanel({ regions, onDeselect, onClearAll }: ContactPanelProps) {
 // OVERLAY UI (top-left stats, top-right legend)
 // ════════════════════════════════════════════════════════════════════════════════
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return isMobile;
+}
+
 function GlobeOverlay({ regions }: { regions: RegionState[] }) {
   const activeCount = regions.filter((r) => r.contacts.length > 0).length;
   const totalContacts = regions.reduce((s, r) => s + r.contacts.length, 0);
   const selectedCount = regions.filter((r) => r.selected).length;
+  const isMobile = useIsMobile();
 
   return (
     <>
       {/* Top-left status block */}
       <div style={{
         position: "absolute",
-        top: 20,
-        left: 20,
+        top: isMobile ? 10 : 20,
+        left: isMobile ? 10 : 20,
         zIndex: 100,
         fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
         pointerEvents: "none",
       }}>
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-          marginBottom: 8,
-        }}>
+        {!isMobile && (
           <div style={{
-            width: 2,
-            height: 18,
-            background: COLORS.amber,
-            boxShadow: `0 0 10px ${COLORS.amberGlow}`,
-          }} />
-          <span style={{
-            color: COLORS.amber,
-            fontSize: 10,
-            fontWeight: 800,
-            letterSpacing: "0.22em",
-            textTransform: "uppercase",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginBottom: 8,
           }}>
-            Contact Intelligence
-          </span>
-        </div>
+            <div style={{
+              width: 2,
+              height: 18,
+              background: COLORS.amber,
+              boxShadow: `0 0 10px ${COLORS.amberGlow}`,
+            }} />
+            <span style={{
+              color: COLORS.amber,
+              fontSize: 10,
+              fontWeight: 800,
+              letterSpacing: "0.22em",
+              textTransform: "uppercase",
+            }}>
+              Contact Intelligence
+            </span>
+          </div>
+        )}
         <div style={{
           background: "rgba(6,9,20,0.85)",
           border: `1px solid ${COLORS.panelBorder}`,
           borderRadius: 4,
-          padding: "8px 12px",
+          padding: isMobile ? "5px 8px" : "8px 12px",
           backdropFilter: "blur(8px)",
         }}>
           {[
             ["NODES", totalContacts.toString()],
             ["REGIONS", activeCount.toString()],
-            ["SELECTED", selectedCount > 0 ? selectedCount.toString() : "—"],
+            ...(isMobile ? [] : [["SELECTED", selectedCount > 0 ? selectedCount.toString() : "—"]]),
           ].map(([label, val]) => (
             <div key={label} style={{
               display: "flex",
               justifyContent: "space-between",
-              gap: 20,
-              marginBottom: 3,
+              gap: isMobile ? 12 : 20,
+              marginBottom: 2,
             }}>
-              <span style={{ color: COLORS.textDim, fontSize: 9, letterSpacing: "0.12em" }}>
+              <span style={{ color: COLORS.textDim, fontSize: isMobile ? 8 : 9, letterSpacing: "0.12em" }}>
                 {label}
               </span>
               <span style={{
                 color: label === "SELECTED" && selectedCount > 0 ? COLORS.amber : COLORS.text,
-                fontSize: 9,
+                fontSize: isMobile ? 8 : 9,
                 fontWeight: 700,
               }}>
                 {val}
@@ -685,53 +700,77 @@ function GlobeOverlay({ regions }: { regions: RegionState[] }) {
         </div>
       </div>
 
-      {/* Top-right instructions */}
-      <div style={{
-        position: "absolute",
-        top: 20,
-        right: 20,
-        zIndex: 100,
-        fontFamily: "'JetBrains Mono', monospace",
-        pointerEvents: "none",
-        textAlign: "right",
-      }}>
+      {/* Top-right instructions — hidden on mobile */}
+      {!isMobile && (
         <div style={{
-          background: "rgba(6,9,20,0.85)",
-          border: `1px solid ${COLORS.panelBorder}`,
-          borderRadius: 4,
-          padding: "8px 12px",
-          backdropFilter: "blur(8px)",
+          position: "absolute",
+          top: 20,
+          right: 20,
+          zIndex: 100,
+          fontFamily: "'JetBrains Mono', monospace",
+          pointerEvents: "none",
+          textAlign: "right",
         }}>
-          {[
-            ["DRAG", "Rotate globe"],
-            ["SCROLL", "Zoom"],
-            ["CLICK", "Select region"],
-            ["MULTI", "Ctrl+click"],
-          ].map(([key, desc]) => (
-            <div key={key} style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 8,
-              marginBottom: 3,
-              alignItems: "center",
-            }}>
-              <span style={{ color: COLORS.textDim, fontSize: 9 }}>{desc}</span>
-              <span style={{
-                color: COLORS.amber,
-                fontSize: 8,
-                fontWeight: 800,
-                letterSpacing: "0.12em",
-                background: "rgba(212,168,67,0.08)",
-                border: `1px solid ${COLORS.amberDim}`,
-                padding: "1px 5px",
-                borderRadius: 2,
+          <div style={{
+            background: "rgba(6,9,20,0.85)",
+            border: `1px solid ${COLORS.panelBorder}`,
+            borderRadius: 4,
+            padding: "8px 12px",
+            backdropFilter: "blur(8px)",
+          }}>
+            {[
+              ["DRAG", "Rotate globe"],
+              ["SCROLL", "Zoom"],
+              ["CLICK", "Select region"],
+              ["MULTI", "Ctrl+click"],
+            ].map(([key, desc]) => (
+              <div key={key} style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                marginBottom: 3,
+                alignItems: "center",
               }}>
-                {key}
-              </span>
-            </div>
-          ))}
+                <span style={{ color: COLORS.textDim, fontSize: 9 }}>{desc}</span>
+                <span style={{
+                  color: COLORS.amber,
+                  fontSize: 8,
+                  fontWeight: 800,
+                  letterSpacing: "0.12em",
+                  background: "rgba(212,168,67,0.08)",
+                  border: `1px solid ${COLORS.amberDim}`,
+                  padding: "1px 5px",
+                  borderRadius: 2,
+                }}>
+                  {key}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Mobile: tap hint at top-right */}
+      {isMobile && (
+        <div style={{
+          position: "absolute",
+          top: 10,
+          right: 10,
+          zIndex: 100,
+          fontFamily: "'JetBrains Mono', monospace",
+          pointerEvents: "none",
+        }}>
+          <div style={{
+            background: "rgba(6,9,20,0.85)",
+            border: `1px solid ${COLORS.panelBorder}`,
+            borderRadius: 4,
+            padding: "4px 8px",
+            backdropFilter: "blur(8px)",
+          }}>
+            <span style={{ color: COLORS.textDim, fontSize: 8 }}>Tap region to select</span>
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -1052,17 +1091,28 @@ const GlobeWidget: React.FC<GlobeWidgetProps> = ({
       controls.minDistance = 150;
       controls.maxDistance = 600;
 
+      // Mouse events
       el.addEventListener("mousedown", () => {
         isDragging = true;
         if (controls) controls.autoRotate = false;
       });
       el.addEventListener("mouseup", () => {
         isDragging = false;
-        // Resume auto-rotate after 4 seconds of no interaction
         setTimeout(() => {
           if (!isDragging && controls) controls.autoRotate = true;
         }, 4000);
       });
+      // Touch events for mobile
+      el.addEventListener("touchstart", () => {
+        isDragging = true;
+        if (controls) controls.autoRotate = false;
+      }, { passive: true });
+      el.addEventListener("touchend", () => {
+        isDragging = false;
+        setTimeout(() => {
+          if (!isDragging && controls) controls.autoRotate = true;
+        }, 4000);
+      }, { passive: true });
     }
 
     // ── Resize observer ──
@@ -1222,8 +1272,110 @@ const GlobeWidget: React.FC<GlobeWidgetProps> = ({
         onDeselect={handleDeselect}
         onClearAll={handleClearAll}
       />
+
+      {/* Mobile portrait landscape prompt */}
+      <LandscapePrompt />
     </div>
   );
 };
+
+// ════════════════════════════════════════════════════════════════════════════════
+// LANDSCAPE PROMPT (mobile portrait only)
+// ════════════════════════════════════════════════════════════════════════════════
+
+function LandscapePrompt() {
+  const [show, setShow] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (dismissed) return;
+    const check = () => {
+      const isMobilePortrait = window.innerWidth < 640 && window.innerHeight > window.innerWidth;
+      setShow(isMobilePortrait);
+    };
+    check();
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    // Auto-dismiss after 6 seconds
+    const timer = setTimeout(() => setDismissed(true), 6000);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+      clearTimeout(timer);
+    };
+  }, [dismissed]);
+
+  if (!show || dismissed) return null;
+
+  return (
+    <div
+      onClick={() => setDismissed(true)}
+      style={{
+        position: "absolute",
+        bottom: 56,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 300,
+        background: "rgba(6,9,20,0.92)",
+        border: `1px solid ${COLORS.amberDim}`,
+        borderRadius: 6,
+        padding: "10px 16px",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        cursor: "pointer",
+        backdropFilter: "blur(12px)",
+        animation: "fadeInUp 0.4s ease-out",
+      }}
+    >
+      {/* Rotating phone icon */}
+      <div style={{
+        width: 28,
+        height: 28,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        animation: "rotatePhone 2s ease-in-out infinite",
+      }}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={COLORS.amber} strokeWidth="1.5">
+          <rect x="5" y="2" width="14" height="20" rx="2" />
+          <line x1="12" y1="18" x2="12" y2="18.01" strokeWidth="2" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div>
+        <div style={{
+          color: COLORS.amber,
+          fontSize: 10,
+          fontWeight: 700,
+          letterSpacing: "0.12em",
+          textTransform: "uppercase",
+          fontFamily: "'JetBrains Mono', monospace",
+          marginBottom: 2,
+        }}>
+          Rotate for best view
+        </div>
+        <div style={{
+          color: COLORS.textDim,
+          fontSize: 9,
+          fontFamily: "'JetBrains Mono', monospace",
+        }}>
+          Landscape mode recommended
+        </div>
+      </div>
+      <style>{`
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+          to { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+        @keyframes rotatePhone {
+          0%, 100% { transform: rotate(0deg); }
+          25% { transform: rotate(-90deg); }
+          50% { transform: rotate(-90deg); }
+          75% { transform: rotate(0deg); }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 export default GlobeWidget;
