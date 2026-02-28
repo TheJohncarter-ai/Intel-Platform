@@ -7,17 +7,21 @@ import { extractCountry } from "@shared/utils";
 import { Link, useLocation } from "wouter";
 import {
   Shield, LogOut, Search, Globe, List, Mail, ChevronRight,
-  Users, MapPin, Building, X, ArrowUpDown,
+  Users, MapPin, Building, X, ArrowUpDown, Download, Upload,
+  AlertTriangle, Clock,
 } from "lucide-react";
+import { toast } from "sonner";
 
-type ViewMode = "globe" | "list";
+type ViewMode = "globe" | "list" | "stale";
 type SortKey = "name" | "organization" | "location" | "tier" | "group";
 
 export default function Home() {
   const { user, logout } = useAuth();
   const { data: contacts, isLoading } = trpc.contacts.list.useQuery();
   const { data: access } = trpc.auth.checkAccess.useQuery(undefined, { enabled: !!user });
+  const { data: staleContacts } = trpc.contacts.stale.useQuery({ daysSince: 30 });
   const [, setLocation] = useLocation();
+  const utils = trpc.useUtils();
 
   const [viewMode, setViewMode] = useState<ViewMode>("globe");
   const [searchOpen, setSearchOpen] = useState(false);
@@ -25,7 +29,23 @@ export default function Home() {
   const [listFilter, setListFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortAsc, setSortAsc] = useState(true);
+  const [importing, setImporting] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const exportCsv = trpc.contacts.exportCsv.useQuery(undefined, { enabled: false });
+  const importCsv = trpc.contacts.importCsv.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Imported ${data.imported} contacts`);
+      utils.contacts.list.invalidate();
+      utils.contacts.stale.invalidate();
+      setImporting(false);
+    },
+    onError: (err) => {
+      toast.error(`Import failed: ${err.message}`);
+      setImporting(false);
+    },
+  });
 
   const globeContacts: GlobeContact[] = useMemo(() => {
     if (!contacts) return [];
@@ -42,11 +62,11 @@ export default function Home() {
 
   // Stats
   const stats = useMemo(() => {
-    if (!contacts) return { total: 0, countries: 0, orgs: 0 };
+    if (!contacts) return { total: 0, countries: 0, orgs: 0, stale: 0 };
     const countries = new Set(contacts.map(c => extractCountry(c.location)).filter(Boolean));
     const orgs = new Set(contacts.map(c => c.organization).filter(Boolean));
-    return { total: contacts.length, countries: countries.size, orgs: orgs.size };
-  }, [contacts]);
+    return { total: contacts.length, countries: countries.size, orgs: orgs.size, stale: staleContacts?.length ?? 0 };
+  }, [contacts, staleContacts]);
 
   // Search overlay results
   const searchResults = useMemo(() => {
@@ -113,6 +133,49 @@ export default function Home() {
     return { bg: "#120d1f", border: "#2d1a5a", text: "#a78bfa" };
   };
 
+  const handleExportCsv = async () => {
+    try {
+      const result = await exportCsv.refetch();
+      if (result.data) {
+        const blob = new Blob([result.data], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `contacts-${new Date().toISOString().slice(0, 10)}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.success("CSV exported successfully");
+      }
+    } catch {
+      toast.error("Export failed");
+    }
+  };
+
+  const handleImportCsv = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const csvContent = ev.target?.result as string;
+      importCsv.mutate({ csvContent });
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read file");
+      setImporting(false);
+    };
+    reader.readAsText(file);
+    // Reset input so same file can be re-selected
+    e.target.value = "";
+  };
+
+  const daysSince = (date: Date | string | null | undefined) => {
+    if (!date) return null;
+    const d = typeof date === "string" ? new Date(date) : date;
+    const diff = Date.now() - d.getTime();
+    return Math.floor(diff / (1000 * 60 * 60 * 24));
+  };
+
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "#0a0c18" }}>
       {/* ═══ HEADER ═══ */}
@@ -137,30 +200,65 @@ export default function Home() {
 
           {/* View Toggle */}
           <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid #151f38" }}>
+            {([
+              { mode: "globe" as ViewMode, icon: <Globe size={11} />, label: "Globe" },
+              { mode: "list" as ViewMode, icon: <List size={11} />, label: "List" },
+              { mode: "stale" as ViewMode, icon: <AlertTriangle size={11} />, label: "Stale" },
+            ]).map((v, i) => (
+              <button
+                key={v.mode}
+                onClick={() => setViewMode(v.mode)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase transition-all"
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  background: viewMode === v.mode ? "rgba(212,168,67,0.12)" : "transparent",
+                  color: viewMode === v.mode ? "#d4a843" : "#4a6080",
+                  borderLeft: i > 0 ? "1px solid #151f38" : "none",
+                }}
+              >
+                {v.icon} {v.label}
+                {v.mode === "stale" && stats.stale > 0 && (
+                  <span className="ml-0.5 text-[8px] bg-[#f87171] text-white rounded-full w-4 h-4 flex items-center justify-center font-bold">
+                    {stats.stale > 9 ? "9+" : stats.stale}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* CSV Buttons */}
+          <div className="flex rounded-md overflow-hidden" style={{ border: "1px solid #151f38" }}>
             <button
-              onClick={() => setViewMode("globe")}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase transition-all"
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                background: viewMode === "globe" ? "rgba(212,168,67,0.12)" : "transparent",
-                color: viewMode === "globe" ? "#d4a843" : "#4a6080",
-              }}
+              onClick={handleExportCsv}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold tracking-wider uppercase transition-all hover:bg-[rgba(74,96,128,0.1)]"
+              style={{ fontFamily: "'JetBrains Mono', monospace", color: "#4a6080" }}
+              title="Export contacts as CSV"
             >
-              <Globe size={11} /> Globe
+              <Download size={11} />
+              <span className="hidden md:inline">Export</span>
             </button>
             <button
-              onClick={() => setViewMode("list")}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold tracking-wider uppercase transition-all"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={importing}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-bold tracking-wider uppercase transition-all hover:bg-[rgba(74,96,128,0.1)]"
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
-                background: viewMode === "list" ? "rgba(212,168,67,0.12)" : "transparent",
-                color: viewMode === "list" ? "#d4a843" : "#4a6080",
+                color: importing ? "#2a3a54" : "#4a6080",
                 borderLeft: "1px solid #151f38",
               }}
+              title="Import contacts from CSV"
             >
-              <List size={11} /> List
+              <Upload size={11} />
+              <span className="hidden md:inline">{importing ? "..." : "Import"}</span>
             </button>
           </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleImportCsv}
+            className="hidden"
+          />
 
           {/* Search Button */}
           <button
@@ -268,7 +366,6 @@ export default function Home() {
                         <span className="text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded shrink-0"
                           style={{
                             fontFamily: "'JetBrains Mono', monospace",
-                            ...tierColor(c.tier),
                             background: tierColor(c.tier).bg,
                             border: `1px solid ${tierColor(c.tier).border}`,
                             color: tierColor(c.tier).text,
@@ -301,6 +398,89 @@ export default function Home() {
         ) : viewMode === "globe" ? (
           <div className="px-3 pb-4 pt-2">
             <GlobeWidget contacts={globeContacts} height={650} />
+          </div>
+        ) : viewMode === "stale" ? (
+          /* ═══ STALE CONTACTS VIEW ═══ */
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-[3px] h-5 rounded-sm bg-[#f87171]" style={{ boxShadow: "0 0 10px rgba(248,113,113,0.5)" }} />
+              <span className="text-[#f87171] text-[10px] font-extrabold tracking-[0.22em] uppercase"
+                style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                Stale Contacts — No Engagement in 30+ Days
+              </span>
+              <span className="text-[#4a6080] text-[10px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                [{staleContacts?.length ?? 0}]
+              </span>
+            </div>
+
+            {!staleContacts || staleContacts.length === 0 ? (
+              <div className="rounded-lg py-16 text-center" style={{ background: "#060914", border: "1px solid #151f38" }}>
+                <Clock size={32} className="mx-auto mb-3 text-[#1a3a6a]" />
+                <p className="text-[#4a6080] text-[12px]" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                  All contacts have been engaged within the last 30 days
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                {staleContacts.map(c => {
+                  const days = daysSince(c.lastContactedAt);
+                  const urgency = days === null ? "never" : days > 90 ? "critical" : days > 60 ? "warning" : "mild";
+                  const urgencyColors = {
+                    never: { bg: "#1f0d0d", border: "#4a1a1a", text: "#f87171", label: "NEVER CONTACTED" },
+                    critical: { bg: "#1f0d0d", border: "#4a1a1a", text: "#f87171", label: `${days}d AGO` },
+                    warning: { bg: "#1f1a0d", border: "#4a3a1a", text: "#fbbf24", label: `${days}d AGO` },
+                    mild: { bg: "#0d1828", border: "#1a3a5a", text: "#60a5fa", label: `${days}d AGO` },
+                  };
+                  const u = urgencyColors[urgency];
+                  return (
+                    <Link
+                      key={c.id}
+                      href={`/profile/${c.id}`}
+                      className="flex items-center gap-4 px-4 py-3.5 rounded-lg transition-all hover:bg-[#0d1020] group"
+                      style={{ background: "#060914", border: "1px solid #151f38" }}
+                    >
+                      <div className="w-9 h-9 rounded-md bg-[#151f38] border border-[#1a3a6a] flex items-center justify-center text-[#d4a843] text-[12px] font-bold shrink-0"
+                        style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                        {c.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[#c8d8f0] text-[12px] font-semibold truncate group-hover:text-[#d4a843] transition-colors"
+                          style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {c.name}
+                        </div>
+                        <div className="text-[#4a6080] text-[10px] truncate" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+                          {[c.role, c.organization, extractCountry(c.location)].filter(Boolean).join(" · ")}
+                        </div>
+                      </div>
+                      {c.tier && (() => {
+                        const tc = tierColor(c.tier);
+                        return (
+                          <span className="text-[9px] font-bold tracking-wider uppercase px-2 py-0.5 rounded shrink-0"
+                            style={{
+                              fontFamily: "'JetBrains Mono', monospace",
+                              background: tc.bg,
+                              border: `1px solid ${tc.border}`,
+                              color: tc.text,
+                            }}>
+                            {c.tier}
+                          </span>
+                        );
+                      })()}
+                      <span className="text-[9px] font-bold tracking-wider uppercase px-2.5 py-1 rounded shrink-0"
+                        style={{
+                          fontFamily: "'JetBrains Mono', monospace",
+                          background: u.bg,
+                          border: `1px solid ${u.border}`,
+                          color: u.text,
+                        }}>
+                        {u.label}
+                      </span>
+                      <ChevronRight size={12} className="text-[#2a3a54] shrink-0 group-hover:text-[#d4a843] transition-colors" />
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : (
           /* ═══ LIST VIEW ═══ */

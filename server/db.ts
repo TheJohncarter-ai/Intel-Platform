@@ -99,6 +99,48 @@ export async function setContactResearchedAt(id: number): Promise<void> {
   await db.update(contacts).set({ lastResearchedAt: new Date() }).where(eq(contacts.id, id));
 }
 
+export async function setContactLastContacted(id: number): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(contacts).set({ lastContactedAt: new Date() }).where(eq(contacts.id, id));
+}
+
+export async function getStaleContacts(daysSince: number = 30): Promise<Contact[]> {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(contacts)
+    .where(
+      sql`${contacts.lastContactedAt} IS NULL OR ${contacts.lastContactedAt} < DATE_SUB(NOW(), INTERVAL ${daysSince} DAY)`
+    )
+    .orderBy(sql`COALESCE(${contacts.lastContactedAt}, '1970-01-01') ASC`);
+}
+
+export async function bulkInsertContacts(
+  rows: Array<{
+    name: string; role?: string; organization?: string; location?: string;
+    group?: string; tier?: string; email?: string; phone?: string;
+    notes?: string; linkedinUrl?: string;
+  }>
+): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  if (rows.length === 0) return 0;
+  const values = rows.map(r => ({
+    name: r.name,
+    role: r.role || null,
+    organization: r.organization || null,
+    location: r.location || null,
+    group: r.group || null,
+    tier: r.tier || null,
+    email: r.email || null,
+    phone: r.phone || null,
+    notes: r.notes || null,
+    linkedinUrl: r.linkedinUrl || null,
+  }));
+  await db.insert(contacts).values(values);
+  return values.length;
+}
+
 /** Get the most recent note date for each contact */
 export async function getLastContactedMap(): Promise<Map<number, Date>> {
   const db = await getDb();

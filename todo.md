@@ -47,3 +47,16 @@
 - [x] Verify Google OAuth flow is fully working
 - [x] Phase 3 tests (32 total passing)
 - [x] Phase 3 checkpoint
+
+## Phase 4 — GitHub Integration + Arcs, Import/Export, Last Contacted
+- [x] Pull King's latest changes from GitHub repo (README.md + todo.md update)
+- [x] Review and integrate King's changes with current build
+- [ ] Relationship arcs on globe (animated arcs between contacts sharing org/group)
+- [ ] CSV export endpoint (download all contacts as CSV)
+- [ ] CSV import endpoint (bulk-add contacts from CSV upload)
+- [ ] CSV import/export UI on Home page
+- [ ] lastContactedAt field on contacts table (auto-update when notes added)
+- [ ] Stale contacts dashboard view (contacts not engaged recently)
+- [ ] Push to GitHub repo
+- [ ] Phase 4 tests
+- [ ] Phase 4 checkpoint

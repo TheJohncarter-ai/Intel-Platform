@@ -978,6 +978,65 @@ const GlobeWidget: React.FC<GlobeWidgetProps> = ({
       .ringPropagationSpeed("propagationSpeed")
       .ringRepeatPeriod("repeatPeriod");
 
+    // ── Arcs: relationship connections between regions sharing org/group ──
+    const arcData: Array<{
+      startLat: number; startLng: number;
+      endLat: number; endLng: number;
+      color: string;
+    }> = [];
+    const regionArr = Object.values(regionIndex);
+    // Build org→regions and group→regions maps
+    const orgRegions: Record<string, Set<string>> = {};
+    const groupRegions: Record<string, Set<string>> = {};
+    regionArr.forEach(r => {
+      r.contacts.forEach(c => {
+        if (c.organization) {
+          if (!orgRegions[c.organization]) orgRegions[c.organization] = new Set();
+          orgRegions[c.organization].add(r.iso);
+        }
+        if (c.group) {
+          if (!groupRegions[c.group]) groupRegions[c.group] = new Set();
+          groupRegions[c.group].add(r.iso);
+        }
+      });
+    });
+    // Create arcs between connected regions
+    const arcPairs = new Set<string>();
+    const addArcs = (regionMap: Record<string, Set<string>>, color: string) => {
+      Object.values(regionMap).forEach(isoSet => {
+        const isos = Array.from(isoSet);
+        for (let i = 0; i < isos.length; i++) {
+          for (let j = i + 1; j < isos.length; j++) {
+            const key = [isos[i], isos[j]].sort().join("-");
+            if (arcPairs.has(key)) continue;
+            arcPairs.add(key);
+            const rA = regionArr.find(r => r.iso === isos[i]);
+            const rB = regionArr.find(r => r.iso === isos[j]);
+            if (rA && rB) {
+              arcData.push({
+                startLat: rA.lat, startLng: rA.lng,
+                endLat: rB.lat, endLng: rB.lng,
+                color,
+              });
+            }
+          }
+        }
+      });
+    };
+    addArcs(orgRegions, "rgba(212,168,67,0.35)");  // amber for org connections
+    addArcs(groupRegions, "rgba(96,165,250,0.25)"); // blue for group connections
+
+    if (arcData.length > 0) {
+      globe
+        .arcsData(arcData)
+        .arcColor((d: any) => d.color)
+        .arcAltitude(0.15)
+        .arcStroke(0.4)
+        .arcDashLength(0.6)
+        .arcDashGap(0.3)
+        .arcDashAnimateTime(2500);
+    }
+
     // ── Initial camera: full world auto-rotate ──
     globe.pointOfView({ lat: 20, lng: -20, altitude: 2.5 });
 

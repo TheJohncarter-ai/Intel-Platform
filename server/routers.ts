@@ -7,6 +7,7 @@ import { invokeLLM } from "./_core/llm";
 import { z } from "zod";
 import {
   getAllContacts, getContactById, updateContact, setContactResearchedAt, getLastContactedMap,
+  setContactLastContacted, getStaleContacts, bulkInsertContacts,
   isEmailWhitelisted, getAllWhitelistEntries, addToWhitelist, removeFromWhitelist,
   createAccessRequest, getAllAccessRequests, getPendingAccessRequests,
   updateAccessRequestStatus, hasExistingPendingRequest,
@@ -127,6 +128,72 @@ Keep it factual, concise, and actionable. Format with clear sections using markd
 
         return note;
       }),
+
+    stale: protectedProcedure
+      .input(z.object({ daysSince: z.number().min(1).max(365).default(30) }))
+      .query(async ({ input }) => {
+        return getStaleContacts(input.daysSince);
+      }),
+
+    exportCsv: protectedProcedure.query(async () => {
+      const allContacts = await getAllContacts();
+      const headers = ["name","role","organization","location","group","tier","email","phone","notes","linkedinUrl"];
+      const csvRows = [headers.join(",")];
+      for (const c of allContacts) {
+        const row = headers.map(h => {
+          const val = String((c as any)[h] ?? "");
+          // Escape CSV: wrap in quotes if contains comma, quote, or newline
+          if (val.includes(",") || val.includes('"') || val.includes("\n")) {
+            return '"' + val.replace(/"/g, '""') + '"';
+          }
+          return val;
+        });
+        csvRows.push(row.join(","));
+      }
+      return csvRows.join("\n");
+    }),
+
+    importCsv: protectedProcedure
+      .input(z.object({ csvContent: z.string().max(500000) }))
+      .mutation(async ({ ctx, input }) => {
+        // Parse CSV
+        const lines = input.csvContent.split("\n").filter(l => l.trim());
+        if (lines.length < 2) throw new Error("CSV must have a header row and at least one data row");
+        const headers = lines[0].split(",").map(h => h.trim().replace(/^"|"$/g, "").toLowerCase());
+        const nameIdx = headers.indexOf("name");
+        if (nameIdx === -1) throw new Error("CSV must have a 'name' column");
+
+        const fieldMap: Record<string, string> = {
+          name: "name", role: "role", organization: "organization", org: "organization",
+          location: "location", country: "location", group: "group", tier: "tier",
+          email: "email", phone: "phone", notes: "notes", linkedin: "linkedinUrl", linkedinurl: "linkedinUrl",
+        };
+
+        const rows: Array<Record<string, string>> = [];
+        for (let i = 1; i < lines.length; i++) {
+          // Simple CSV parse (handles quoted fields)
+          const values: string[] = [];
+          let current = "";
+          let inQuotes = false;
+          for (const ch of lines[i]) {
+            if (ch === '"') { inQuotes = !inQuotes; }
+            else if (ch === "," && !inQuotes) { values.push(current.trim()); current = ""; }
+            else { current += ch; }
+          }
+          values.push(current.trim());
+
+          const row: Record<string, string> = {};
+          for (let j = 0; j < headers.length; j++) {
+            const mapped = fieldMap[headers[j]];
+            if (mapped && values[j]) row[mapped] = values[j];
+          }
+          if (row.name) rows.push(row);
+        }
+
+        const count = await bulkInsertContacts(rows as any);
+        await logAudit("contact_updated", ctx.user.email!, ctx.user.name ?? null, "import", undefined, `Imported ${count} contacts via CSV`);
+        return { imported: count };
+      }),
   }),
 
   // ═══════════════════════════════════════════════════════════════════
@@ -179,6 +246,8 @@ Keep it factual, concise, and actionable. Format with clear sections using markd
           input.contactId, ctx.user.email!, ctx.user.name ?? null,
           input.noteType, input.content,
         );
+        // Auto-update lastContactedAt when a note is added
+        await setContactLastContacted(input.contactId);
         await logAudit("note_added", ctx.user.email!, ctx.user.name ?? null, "contact", input.contactId, `Note #${note.id}: ${input.noteType}`);
         return note;
       }),

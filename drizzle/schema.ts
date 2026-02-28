@@ -36,6 +36,7 @@ export const contacts = mysqlTable("contacts", {
   notes: text("notes"),
   linkedinUrl: varchar("linkedinUrl", { length: 500 }),
   lastResearchedAt: timestamp("lastResearchedAt"),
+  lastContactedAt: timestamp("lastContactedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });

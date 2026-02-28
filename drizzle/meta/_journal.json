@@ -29,6 +29,13 @@
       "when": 1772248809217,
       "tag": "0003_naive_franklin_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1772249489881,
+      "tag": "0004_tough_vulcan",
+      "breakpoints": true
     }
   ]
 }
