@@ -4,15 +4,26 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import AuthGate from "./components/AuthGate";
 import Home from "./pages/Home";
 import Profile from "./pages/Profile";
+import Admin from "./pages/Admin";
+import RequestAccess from "./pages/RequestAccess";
 
 function Router() {
   return (
     <Switch>
-      <Route path={"/"} component={Home} />
-      <Route path={"/profile/:id"} component={Profile} />
-      <Route path={"/404"} component={NotFound} />
+      <Route path="/">
+        <AuthGate><Home /></AuthGate>
+      </Route>
+      <Route path="/profile/:id">
+        <AuthGate><Profile /></AuthGate>
+      </Route>
+      <Route path="/admin">
+        <AuthGate requireAdmin><Admin /></AuthGate>
+      </Route>
+      <Route path="/request-access" component={RequestAccess} />
+      <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
   );

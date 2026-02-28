@@ -14,3 +14,22 @@
 - [x] Write vitest test for the integration
 - [x] Verify compilation
 - [x] Save checkpoint
+
+## Phase 1 — Re-integrate Features
+- [x] Email whitelist table + access control middleware
+- [x] Access requests table + "Request Access" page for non-whitelisted users
+- [x] Admin panel at /admin (only Powelljohn9521@gmail.com) — approve/deny requests, manage whitelist
+- [x] Meeting notes / relationship logs on contact profiles (timestamped, with author)
+- [x] Audit log table — tracks profile views, note additions, note deletions
+- [x] Admin-only audit log page with filtering and pagination
+- [x] Auth flow: protect routes, redirect non-whitelisted to request page
+- [x] Notify admin on new access requests
+- [x] Phase 1 tests (26 passing)
+- [x] Phase 1 checkpoint
+
+## Phase 2 — Review & Refactor
+- [ ] Full UX review — identify improvements
+- [ ] Data feed analysis — LinkedIn, RSS, webhooks, APIs for living intelligence
+- [ ] Codebase refactor — remove redundancy, optimize performance, improve structure
+- [ ] Write detailed review document
+- [ ] Phase 2 checkpoint

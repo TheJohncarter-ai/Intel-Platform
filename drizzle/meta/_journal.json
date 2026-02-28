@@ -15,6 +15,13 @@
       "when": 1772247509609,
       "tag": "0001_omniscient_scarecrow",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1772247930162,
+      "tag": "0002_organic_machine_man",
+      "breakpoints": true
     }
   ]
 }
