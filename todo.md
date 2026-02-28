@@ -64,12 +64,12 @@
 ## Phase 5 — GitHub Sync + Mobile Optimization
 - [x] Push all current code to GitHub main branch
 - [x] Verify GitHub repo is fully up to date
-- [ ] Responsive Home page layout (header, globe, list, stale views)
-- [ ] Portrait-to-landscape rotation prompt animation on mobile globe view
-- [ ] Responsive Profile page (contact info, notes, forms)
-- [ ] Responsive Admin panel (tabs, tables, forms)
-- [ ] Responsive Request Access page
-- [ ] Touch-friendly globe interactions
-- [ ] Contact cards and bottom panel responsive on small screens
-- [ ] Tables scroll horizontally on mobile
-- [ ] Phase 5 checkpoint + GitHub push
+- [x] Responsive Home page layout (header, globe, list, stale views)
+- [x] Portrait-to-landscape rotation prompt animation on mobile globe view
+- [x] Responsive Profile page (contact info, notes, forms)
+- [x] Responsive Admin panel (tabs, tables, forms)
+- [x] Responsive Request Access page
+- [x] Touch-friendly globe interactions
+- [x] Contact cards and bottom panel responsive on small screens
+- [x] Tables scroll horizontally on mobile
+- [x] Phase 5 checkpoint + GitHub push
