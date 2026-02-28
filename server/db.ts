@@ -1,11 +1,10 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, contacts, type Contact } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
@@ -89,4 +88,20 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// ── Contact queries ──
+
+export async function getAllContacts(): Promise<Contact[]> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Database] Cannot get contacts: database not available");
+    return [];
+  }
+  return db.select().from(contacts);
+}
+
+export async function getContactById(id: number): Promise<Contact | undefined> {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(contacts).where(eq(contacts.id, id)).limit(1);
+  return result[0];
+}

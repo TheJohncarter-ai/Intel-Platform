@@ -1,0 +1,31 @@
+{
+  "query": "SELECT COUNT(*) as total FROM contacts; SELECT id, name, location, group_name, tier FROM contacts LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway04.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3ytZ538ja4s8Yda.a638b9814561 --database YWkkoTkLoBJ2WHbVBPRYMD --execute SELECT COUNT(*) as total FROM contacts; SELECT id, name, location, group_name, tier FROM contacts LIMIT 5;",
+  "rows": [
+    {
+      "total": "35"
+    },
+    {
+      "total": "id\tname\tlocation\tgroup_name\ttier"
+    },
+    {
+      "total": "1\tAlejandro Restrepo\tBogotá, Colombia\tColombian VC\tTier 1"
+    },
+    {
+      "total": "2\tCamila Herrera\tMedellín, Colombia\tColombian VC\tTier 1"
+    },
+    {
+      "total": "3\tSantiago Morales\tCali, Colombia\tColombian VC\tTier 2"
+    },
+    {
+      "total": "4\tValentina Ospina\tBogotá, Colombia\tColombian VC\tTier 1"
+    },
+    {
+      "total": "5\tFelipe Arango\tBogotá, Colombia\tColombian VC\tTier 2"
+    }
+  ],
+  "messages": [],
+  "stdout": "total\n35\nid\tname\tlocation\tgroup_name\ttier\n1\tAlejandro Restrepo\tBogotá, Colombia\tColombian VC\tTier 1\n2\tCamila Herrera\tMedellín, Colombia\tColombian VC\tTier 1\n3\tSantiago Morales\tCali, Colombia\tColombian VC\tTier 2\n4\tValentina Ospina\tBogotá, Colombia\tColombian VC\tTier 1\n5\tFelipe Arango\tBogotá, Colombia\tColombian VC\tTier 2\n",
+  "stderr": "",
+  "execution_time_ms": 515
+}
