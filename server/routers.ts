@@ -31,8 +31,9 @@ export const appRouter = router({
     checkAccess: protectedProcedure.query(async ({ ctx }) => {
       const email = ctx.user.email;
       if (!email) return { whitelisted: false, isAdmin: false };
-      const whitelisted = await isEmailWhitelisted(email);
       const isAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+      // Admin is always whitelisted; avoids lockout if admin email isn't in the table
+      const whitelisted = isAdmin || await isEmailWhitelisted(email);
       return { whitelisted, isAdmin };
     }),
   }),

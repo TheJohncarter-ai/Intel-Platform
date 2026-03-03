@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
 
@@ -15,20 +15,20 @@ export default function AuthGate({ children, requireAdmin = false }: { children:
   const { user, loading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
 
-  const { data: access, isLoading: accessLoading } = trpc.auth.checkAccess.useQuery(undefined, {
+  const { data: access, isLoading: accessLoading, error: accessError, refetch: refetchAccess } = trpc.auth.checkAccess.useQuery(undefined, {
     enabled: !!user,
-    retry: false,
+    retry: 2,
   });
 
   useEffect(() => {
     if (!authLoading && !user) return; // handled below
-    if (!accessLoading && access && !access.whitelisted) {
+    if (!accessLoading && !accessError && access && !access.whitelisted) {
       setLocation("/request-access");
     }
-    if (requireAdmin && !accessLoading && access && !access.isAdmin) {
+    if (requireAdmin && !accessLoading && !accessError && access && !access.isAdmin) {
       setLocation("/");
     }
-  }, [authLoading, user, accessLoading, access, requireAdmin, setLocation]);
+  }, [authLoading, user, accessLoading, accessError, access, requireAdmin, setLocation]);
 
   if (authLoading || (user && accessLoading)) {
     return (
@@ -38,6 +38,28 @@ export default function AuthGate({ children, requireAdmin = false }: { children:
           <span className="text-[#4a6080] font-mono text-xs tracking-[0.2em] uppercase">
             Authenticating...
           </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (user && accessError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#0a0c18" }}>
+        <div className="flex flex-col items-center gap-5 p-8 max-w-md w-full">
+          <span className="text-[#d4a843] font-mono text-xs font-bold tracking-[0.22em] uppercase">
+            Access Check Failed
+          </span>
+          <p className="text-[#4a6080] font-mono text-xs text-center">
+            Could not verify your access. This may be a temporary issue.
+          </p>
+          <button
+            onClick={() => refetchAccess()}
+            className="flex items-center gap-2 py-2.5 px-6 rounded font-mono text-xs font-bold tracking-wider uppercase transition-all"
+            style={{ background: "#d4a843", color: "#0a0c18" }}
+          >
+            <RefreshCw size={13} /> Try Again
+          </button>
         </div>
       </div>
     );

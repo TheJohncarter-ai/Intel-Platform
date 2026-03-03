@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { getLoginUrl } from "@/const";
 import { useState } from "react";
-import { CheckCircle, Clock, Shield } from "lucide-react";
+import { CheckCircle, Clock, RefreshCw, Shield } from "lucide-react";
 
 export default function RequestAccess() {
   const { user, loading: authLoading, logout } = useAuth();
@@ -17,8 +17,9 @@ export default function RequestAccess() {
     onSuccess: () => setSubmitted(true),
   });
 
-  const { data: access } = trpc.auth.checkAccess.useQuery(undefined, {
+  const { data: access, refetch: refetchAccess, isFetching: isCheckingAccess } = trpc.auth.checkAccess.useQuery(undefined, {
     enabled: !!user,
+    refetchInterval: 30_000, // auto-check every 30s in case admin approves while page is open
   });
 
   if (access?.whitelisted) {
@@ -82,6 +83,14 @@ export default function RequestAccess() {
               <Clock className="h-4 w-4 text-[#d4a843]" />
               <span className="text-[#d4a843] font-mono text-[10px] sm:text-xs tracking-wider">PENDING REVIEW</span>
             </div>
+            <button
+              onClick={() => refetchAccess()}
+              disabled={isCheckingAccess}
+              className="flex items-center gap-2 mt-1 text-[#4a6080] hover:text-[#c8d8f0] active:text-[#c8d8f0] font-mono text-[10px] sm:text-xs tracking-wider transition-colors disabled:opacity-40 p-2"
+            >
+              <RefreshCw size={11} className={isCheckingAccess ? "animate-spin" : ""} />
+              {isCheckingAccess ? "Checking..." : "Check if approved"}
+            </button>
           </div>
         ) : (
           <>

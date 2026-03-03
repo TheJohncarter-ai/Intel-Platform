@@ -234,7 +234,7 @@ function AccessRequestsTab() {
       utils.admin.requests.list.invalidate();
       utils.admin.whitelist.list.invalidate();
       utils.admin.stats.invalidate();
-      toast.success("Access approved and email added to whitelist");
+      toast.success("Access approved — user can now sign in to access the platform");
     },
   });
 
@@ -356,11 +356,11 @@ function WhitelistTab() {
   const [newEmail, setNewEmail] = useState("");
 
   const addMutation = trpc.admin.whitelist.add.useMutation({
-    onSuccess: () => {
+    onSuccess: (_, { email }) => {
       utils.admin.whitelist.list.invalidate();
       utils.admin.stats.invalidate();
       setNewEmail("");
-      toast.success("Email added to whitelist");
+      toast.success(`${email} added — they can now sign in to access the platform.`);
     },
     onError: (err) => toast.error(err.message),
   });
