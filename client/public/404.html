@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Strategic Network Intelligence</title>
+    <script>
+      // GitHub Pages SPA redirect (github.com/rafgraph/spa-github-pages)
+      // When GitHub Pages 404s on a deep link (e.g. /Intel-Platform/connections),
+      // it serves this file instead. We encode the path into the query string and
+      // redirect to the root — the main app then restores it (see index.html).
+      var segmentsToKeep = 1; // keep the /Intel-Platform repo prefix segment
+      var l = window.location;
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + segmentsToKeep).join('/') + '/?/' +
+        l.pathname.slice(1).split('/').slice(segmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      );
+    </script>
+  </head>
+  <body></body>
+</html>

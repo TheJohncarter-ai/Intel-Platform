@@ -152,8 +152,13 @@ function vitePluginManusDebugCollector(): Plugin {
 
 const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
 
+// When GITHUB_PAGES=true the app is deployed to https://<user>.github.io/Intel-Platform/
+// so all asset URLs must be rooted at /Intel-Platform/ rather than /.
+const base = process.env.GITHUB_PAGES === "true" ? "/Intel-Platform/" : "/";
+
 export default defineConfig({
   plugins,
+  base,
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),
