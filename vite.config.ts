@@ -150,7 +150,14 @@ function vitePluginManusDebugCollector(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()];
+// Manus-specific plugins are only used inside the Manus sandbox.
+// Railway and other non-Manus environments skip them via RAILWAY_ENVIRONMENT.
+const isRailway = !!process.env.RAILWAY_ENVIRONMENT;
+const plugins = [
+  react(),
+  tailwindcss(),
+  ...(isRailway ? [] : [jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector()]),
+];
 
 export default defineConfig({
   plugins,
