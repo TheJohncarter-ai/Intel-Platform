@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import NotFound from "@/pages/NotFound";
-import { Route, Switch } from "wouter";
+import { Router as WouterRouter, Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import AuthGate from "./components/AuthGate";
@@ -11,7 +11,11 @@ import Admin from "./pages/Admin";
 import RequestAccess from "./pages/RequestAccess";
 import Connections from "./pages/Connections";
 
-function Router() {
+// Strip trailing slash so wouter receives "/Intel-Platform" not "/Intel-Platform/"
+// In dev BASE_URL is "/" → base becomes "" (wouter default = root).
+const routerBase = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+function AppRoutes() {
   return (
     <Switch>
       <Route path="/">
@@ -39,7 +43,9 @@ function App() {
       <ThemeProvider defaultTheme="dark">
         <TooltipProvider>
           <Toaster />
-          <Router />
+          <WouterRouter base={routerBase}>
+            <AppRoutes />
+          </WouterRouter>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
