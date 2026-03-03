@@ -37,10 +37,15 @@ queryClient.getMutationCache().subscribe(event => {
   }
 });
 
+// When VITE_API_URL is set (GitHub Pages build), point at the deployed backend.
+// In dev/same-origin builds, fall back to the relative path.
+const apiBase = import.meta.env.VITE_API_URL ?? "";
+const trpcUrl = apiBase ? `${apiBase}/api/trpc` : "/api/trpc";
+
 const trpcClient = trpc.createClient({
   links: [
     httpBatchLink({
-      url: "/api/trpc",
+      url: trpcUrl,
       transformer: superjson,
       fetch(input, init) {
         return globalThis.fetch(input, {

@@ -7,4 +7,6 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+  // URL of the GitHub Pages frontend (used for CORS and post-OAuth redirect)
+  frontendUrl: process.env.FRONTEND_URL ?? "",
 };

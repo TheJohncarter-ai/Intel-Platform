@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: intel-platform-api
+    env: node
+    plan: free
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /api/trpc/system.health?input=%7B%22json%22%3A%7B%22timestamp%22%3A0%7D%7D
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      # Set these in the Render dashboard under Environment:
+      # VITE_APP_ID         — your Manus app ID
+      # JWT_SECRET          — random secret for signing session JWTs
+      # DATABASE_URL        — MySQL/TiDB connection string
+      # OAUTH_SERVER_URL    — Manus OAuth server URL
+      # OWNER_OPEN_ID       — your Manus openId (grants admin access)
+      # FRONTEND_URL        — https://thejohncarter-ai.github.io/Intel-Platform
