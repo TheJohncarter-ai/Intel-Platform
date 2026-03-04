@@ -3,7 +3,7 @@ services:
     name: intel-platform-api
     env: node
     plan: free
-    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    buildCommand: pnpm install --frozen-lockfile && pnpm db:push && pnpm build
     startCommand: pnpm start
     healthCheckPath: /api/trpc/system.health?input=%7B%22json%22%3A%7B%22timestamp%22%3A0%7D%7D
     envVars:
