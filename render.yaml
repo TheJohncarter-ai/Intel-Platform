@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: intel-platform-api
+    name: intel-platform-baze
     env: node
     plan: free
     buildCommand: pnpm install --frozen-lockfile && pnpm db:push && pnpm build
@@ -11,11 +11,15 @@ services:
         value: production
       - key: PORT
         value: 10000
-      # Set these in the Render dashboard under Environment:
-      # JWT_SECRET           — random secret for signing session JWTs
-      # DATABASE_URL         — MySQL/TiDB connection string
-      # GOOGLE_CLIENT_ID     — Google OAuth client ID
-      # GOOGLE_CLIENT_SECRET — Google OAuth client secret
-      # ADMIN_EMAIL          — Google account email that gets admin role (default: Powelljohn9521@gmail.com)
-      # FRONTEND_URL         — https://thejohncarter-ai.github.io/Intel-Platform
-      # (RENDER_EXTERNAL_URL is set automatically by Render — used for the OAuth callback URI)
+      - key: FRONTEND_URL
+        value: https://thejohncarter-ai.github.io/Intel-Platform
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: ADMIN_EMAIL
+        value: Powelljohn9521@gmail.com
