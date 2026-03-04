@@ -5,52 +5,41 @@ import { getSessionCookieOptions } from "./cookies";
 import { sdk } from "./sdk";
 import { ENV } from "./env";
 
-function getQueryParam(req: Request, key: string): string | undefined {
-  const value = req.query[key];
-  return typeof value === "string" ? value : undefined;
-}
-
 export function registerOAuthRoutes(app: Express) {
-  app.get("/api/oauth/callback", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
+    const { email, password } = req.body ?? {};
 
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
+    if (!email || !password) {
+      res.status(400).json({ error: "Email and password are required" });
       return;
     }
 
-    try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-
-      if (!userInfo.openId) {
-        res.status(400).json({ error: "openId missing from user info" });
-        return;
-      }
-
-      await db.upsertUser({
-        openId: userInfo.openId,
-        name: userInfo.name || null,
-        email: userInfo.email ?? null,
-        loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-        lastSignedIn: new Date(),
-      });
-
-      const sessionToken = await sdk.createSessionToken(userInfo.openId, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-      // Redirect to the GitHub Pages frontend if configured, otherwise fall back to "/"
-      const redirectTarget = ENV.frontendUrl || "/";
-      res.redirect(302, redirectTarget);
-    } catch (error) {
-      console.error("[OAuth] Callback failed", error);
-      res.status(500).json({ error: "OAuth callback failed" });
+    if (
+      String(email).toLowerCase() !== ENV.adminEmail.toLowerCase() ||
+      String(password) !== ENV.adminPassword
+    ) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
     }
+
+    const normalizedEmail = String(email).toLowerCase();
+
+    await db.upsertUser({
+      openId: normalizedEmail,
+      name: "Admin",
+      email: normalizedEmail,
+      loginMethod: "password",
+      role: "admin",
+      lastSignedIn: new Date(),
+    });
+
+    const sessionToken = await sdk.createSessionToken(normalizedEmail, {
+      name: "Admin",
+      expiresInMs: ONE_YEAR_MS,
+    });
+
+    const cookieOptions = getSessionCookieOptions(req);
+    res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+    res.json({ success: true });
   });
 }

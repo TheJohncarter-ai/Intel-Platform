@@ -33,7 +33,7 @@ export const appRouter = router({
       if (!email) return { whitelisted: false, isAdmin: false };
       const whitelisted = await isEmailWhitelisted(email);
       const isAdmin = email.toLowerCase() === ADMIN_EMAIL.toLowerCase();
-      return { whitelisted, isAdmin };
+      return { whitelisted: whitelisted || isAdmin, isAdmin };
     }),
   }),
 

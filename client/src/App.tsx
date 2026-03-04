@@ -10,6 +10,7 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import RequestAccess from "./pages/RequestAccess";
 import Connections from "./pages/Connections";
+import LoginPage from "./pages/LoginPage";
 
 // Strip trailing slash so wouter receives "/Intel-Platform" not "/Intel-Platform/"
 // In dev BASE_URL is "/" → base becomes "" (wouter default = root).
@@ -30,6 +31,7 @@ function AppRoutes() {
       <Route path="/connections">
         <AuthGate><Connections /></AuthGate>
       </Route>
+      <Route path="/login" component={LoginPage} />
       <Route path="/request-access" component={RequestAccess} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

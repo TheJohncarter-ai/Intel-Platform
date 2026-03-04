@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
 import { Link, useLocation } from "wouter";
-import { getLoginUrl } from "@/const";
 import {
   ArrowLeft, Network, Building2, Calendar, Briefcase, Globe2,
   Filter, ZoomIn, ZoomOut, Maximize2, Loader2
@@ -265,7 +264,8 @@ export default function Connections() {
   }
 
   if (!isAuthenticated) {
-    window.location.href = getLoginUrl();
+    const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+    window.location.href = `${base}/login`;
     return null;
   }
 

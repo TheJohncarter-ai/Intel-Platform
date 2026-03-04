@@ -1,6 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { getLoginUrl } from "@/const";
 import { useState } from "react";
 import { CheckCircle, Clock, Shield } from "lucide-react";
 
@@ -46,7 +45,7 @@ export default function RequestAccess() {
             You need to sign in before requesting access.
           </p>
           <button
-            onClick={() => { window.location.href = getLoginUrl(); }}
+            onClick={() => { const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? ""; window.location.href = `${base}/login`; }}
             className="py-3 px-8 rounded font-mono text-xs sm:text-sm font-bold tracking-wider uppercase w-full sm:w-auto"
             style={{ background: "#d4a843", color: "#0a0c18" }}
           >

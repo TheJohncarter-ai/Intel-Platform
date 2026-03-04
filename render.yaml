@@ -12,9 +12,8 @@ services:
       - key: PORT
         value: 10000
       # Set these in the Render dashboard under Environment:
-      # VITE_APP_ID         — your Manus app ID
       # JWT_SECRET          — random secret for signing session JWTs
       # DATABASE_URL        — MySQL/TiDB connection string
-      # OAUTH_SERVER_URL    — Manus OAuth server URL
-      # OWNER_OPEN_ID       — your Manus openId (grants admin access)
+      # ADMIN_EMAIL         — admin login email (default: Powelljohn9521@gmail.com)
+      # ADMIN_PASSWORD      — admin login password
       # FRONTEND_URL        — https://thejohncarter-ai.github.io/Intel-Platform

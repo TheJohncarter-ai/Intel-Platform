@@ -1,6 +1,5 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { trpc } from "@/lib/trpc";
-import { getLoginUrl } from "@/const";
 import { Loader2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect } from "react";
@@ -62,7 +61,7 @@ export default function AuthGate({ children, requireAdmin = false }: { children:
             </p>
           </div>
           <button
-            onClick={() => { window.location.href = getLoginUrl(); }}
+            onClick={() => { setLocation("/login"); }}
             className="w-full py-3 px-6 rounded font-mono text-sm font-bold tracking-wider uppercase transition-all"
             style={{
               background: "linear-gradient(135deg, #d4a843, #b8922e)",
