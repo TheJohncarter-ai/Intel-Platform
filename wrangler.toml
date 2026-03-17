@@ -1,0 +1,87 @@
+name = "intel-platform"
+main = "dist/worker.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+# ── Pages (frontend) ─────────────────────────────────────────────────────────
+# Deployed separately via `wrangler pages deploy dist/client`
+# The Worker serves as the API backend at /api/*
+
+# ── Worker Settings ───────────────────────────────────────────────────────────
+[build]
+command = "pnpm run build:worker"
+
+# ── D1 Database ───────────────────────────────────────────────────────────────
+[[d1_databases]]
+binding = "DB"
+database_name = "intel-platform-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+migrations_dir = "drizzle/migrations"
+
+# ── R2 Storage (replaces AWS S3) ──────────────────────────────────────────────
+[[r2_buckets]]
+binding = "STORAGE"
+bucket_name = "intel-platform-storage"
+preview_bucket_name = "intel-platform-storage-preview"
+
+# ── KV Namespaces ─────────────────────────────────────────────────────────────
+# Used for: MFA pending state, rate limiting, session revocation list
+[[kv_namespaces]]
+binding = "MFA_STORE"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_YOUR_KV_PREVIEW_ID"
+
+[[kv_namespaces]]
+binding = "SESSION_STORE"
+id = "REPLACE_WITH_YOUR_SESSION_KV_ID"
+preview_id = "REPLACE_WITH_YOUR_SESSION_KV_PREVIEW_ID"
+
+# ── Queues (contact update automation) ───────────────────────────────────────
+[[queues.producers]]
+binding = "CONTACT_UPDATE_QUEUE"
+queue = "contact-updates"
+
+[[queues.consumers]]
+queue = "contact-updates"
+max_batch_size = 10
+max_batch_timeout = 30
+max_retries = 3
+
+# ── Cron Triggers (scheduled automation) ────────────────────────────────────
+[triggers]
+crons = [
+  # Run stale-contact scan every day at 6am UTC
+  "0 6 * * *",
+  # Run contact enrichment sweep every Sunday at 2am UTC
+  "0 2 * * 0"
+]
+
+# ── Environment Variables ─────────────────────────────────────────────────────
+# Secrets are set via `wrangler secret put <NAME>` — never commit secrets here
+[vars]
+NODE_ENV = "production"
+ADMIN_EMAIL = "Powelljohn9521@gmail.com"
+# GOOGLE_CLIENT_ID    → wrangler secret put GOOGLE_CLIENT_ID
+# GOOGLE_CLIENT_SECRET → wrangler secret put GOOGLE_CLIENT_SECRET
+# JWT_SECRET          → wrangler secret put JWT_SECRET
+# OWNER_OPEN_ID       → wrangler secret put OWNER_OPEN_ID
+
+# ── Development overrides ─────────────────────────────────────────────────────
+[env.preview]
+name = "intel-platform-preview"
+vars = { NODE_ENV = "development" }
+
+[[env.preview.d1_databases]]
+binding = "DB"
+database_name = "intel-platform-db-preview"
+database_id = "REPLACE_WITH_YOUR_PREVIEW_D1_ID"
+
+[[env.preview.kv_namespaces]]
+binding = "MFA_STORE"
+id = "REPLACE_WITH_YOUR_KV_PREVIEW_ID"
+preview_id = "REPLACE_WITH_YOUR_KV_PREVIEW_ID"
+
+[[env.preview.kv_namespaces]]
+binding = "SESSION_STORE"
+id = "REPLACE_WITH_YOUR_SESSION_KV_PREVIEW_ID"
+preview_id = "REPLACE_WITH_YOUR_SESSION_KV_PREVIEW_ID"

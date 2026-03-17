@@ -10,10 +10,16 @@ import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import RequestAccess from "./pages/RequestAccess";
 import Connections from "./pages/Connections";
+import { MFASetup } from "./pages/MFASetup";
+import { MFAVerify } from "./pages/MFAVerify";
 
 function Router() {
   return (
     <Switch>
+      {/* MFA pages — outside AuthGate, shown mid-login */}
+      <Route path="/mfa/setup" component={MFASetup} />
+      <Route path="/mfa/verify" component={MFAVerify} />
+
       <Route path="/">
         <AuthGate><Home /></AuthGate>
       </Route>
